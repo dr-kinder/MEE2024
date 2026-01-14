@@ -7,7 +7,7 @@ datas += collect_data_files("astroquery", includes=["CITATION"])
 datas += [("resources/compressed_tycho2024epoch.npz", "resources")]
 
 a = Analysis(
-    ["MEE2024Stacker.py"],
+    ["main.py"],
     pathex=["."],
     datas=datas,
     hiddenimports=[],
@@ -24,7 +24,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="MEE_2024_v0.5.3",
+    name="MEE_2024_v0.6.0",
     onefile=True,
     console=True,
 )
@@ -33,6 +33,6 @@ exe = EXE(
 if sys.platform == "darwin":
     app = BUNDLE(
         exe,
-        name="MEE_2024_v0.5.3.app",
+        name="MEE_2024_v0.6.0.app",
         bundle_identifier="org.mee2024.mee2024",
     )

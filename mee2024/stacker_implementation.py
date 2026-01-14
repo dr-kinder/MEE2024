@@ -14,9 +14,9 @@ from scipy.ndimage import gaussian_filter
 from matplotlib import cm
 import math
 from scipy.optimize import minimize
-import MEE2024util
+from mee2024 import MEE2024util
 import time
-from MEE2024util import output_path, _version, setup_logger
+from mee2024.MEE2024util import output_path, _version, setup_logger
 import datetime
 import pandas as pd
 import FreeSimpleGUI as sg
@@ -27,12 +27,12 @@ from skimage.morphology import convex_hull_image
 from skimage.transform import downscale_local_mean, resize
 import skimage.data._fetchers # fix py2exe bug
 import scipy
-import database_cache
+from mee2024 import database_cache
 import os
 import shutil
 import json
 import logging
-import platesolve_triangle
+from mee2024 import platesolve_triangle
 import multiprocessing
 import cProfile
 import warnings

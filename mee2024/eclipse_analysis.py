@@ -9,12 +9,12 @@ import json
 import zipfile
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
-from refraction_correction import _find_rotation_matrix
-from transforms import to_polar
+from mee2024.refraction_correction import _find_rotation_matrix
+from mee2024.transforms import to_polar
 import scipy
 from pathlib import Path
 import datetime
-from MEE2024util import output_path, _version
+from mee2024.MEE2024util import output_path, _version
 
 import astropy
 from astropy.coordinates import EarthLocation,SkyCoord, Distance, get_body, AltAz

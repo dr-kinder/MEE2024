@@ -5,11 +5,11 @@ Version 6 May 2024
 
 from sklearn.linear_model import LinearRegression
 import numpy as np
-import transforms
+from mee2024 import transforms
 import matplotlib.pyplot as plt
 import scipy
 import datetime
-from MEE2024util import date_string_to_float, date_from_float
+from mee2024.MEE2024util import date_string_to_float, date_from_float
 from scipy.special import legendre
 import copy
 import json

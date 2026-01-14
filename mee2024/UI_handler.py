@@ -12,10 +12,10 @@ import traceback
 from PIL import Image, ImageTk
 import io
 import datetime
-from MEE2024util import resource_path, _version
-import MEE2024util
-import distortion_fitter
-import eclipse_analysis
+from mee2024.MEE2024util import resource_path, _version
+from mee2024 import MEE2024util
+from mee2024 import distortion_fitter
+from mee2024 import eclipse_analysis
 from pathlib import Path
 def check_files(files):
     try:

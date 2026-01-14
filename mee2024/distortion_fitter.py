@@ -8,28 +8,28 @@ import matplotlib.pyplot as plt
 import scipy
 import numpy as np
 from scipy.spatial.transform import Rotation
-import transforms
+from mee2024 import transforms
 from sklearn.neighbors import NearestNeighbors
 import sklearn.metrics._pairwise_distances_reduction._datasets_pair
 import sklearn.metrics._pairwise_distances_reduction._middle_term_computer
-import database_lookup2
+from mee2024 import database_lookup2
 import os
-from MEE2024util import output_path, date_string_to_float, _version
+from mee2024.MEE2024util import output_path, date_string_to_float, _version
 import json
 from pathlib import Path
-import database_cache
+from mee2024 import database_cache
 from sklearn.linear_model import LinearRegression
 import pandas as pd
 import datetime
-import distortion_polynomial
-import gaia_search
+from mee2024 import distortion_polynomial
+from mee2024 import gaia_search
 from copy import copy
 import zipfile
-import refraction_correction
-import platesolve_triangle
-from MEE2024util import get_bbox
+from mee2024 import refraction_correction
+from mee2024 import platesolve_triangle
+from mee2024.MEE2024util import get_bbox
 import shutil
-import gravity_sweep
+from mee2024 import gravity_sweep
 
 def get_fitfunc(plate, target, transform_function=transforms.linear_transform, img_shape=None):
     def fitfunc(x):

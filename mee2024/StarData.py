@@ -3,7 +3,7 @@ import numpy as np
 import astropy.units as u
 from astropy.coordinates import SkyCoord, Distance
 from astropy.time import Time
-from MEE2024util import date_string_to_float
+from mee2024.MEE2024util import date_string_to_float
  
 '''
 remove NaNs

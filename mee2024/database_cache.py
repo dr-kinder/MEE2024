@@ -1,9 +1,10 @@
-import database_lookup2
-import gaia_search
+from mee2024 import database_lookup2
+from mee2024 import gaia_search
 import numpy as np
 from scipy.spatial import KDTree
 import time
-import platesolve_new
+from mee2024 import platesolve_new
+from mee2024.MEE2024util import get_triangle_db_path
 from multiprocessing import Process, Queue
 from multiprocessing import Manager
 class _cache:
@@ -25,16 +26,15 @@ class TriangleData:
         self.pattern_ind = cata_data['pattern_ind'] # n x N array of integer : the indices of neighbouring stars
         self.kd_tree = KDTree(self.triangles.reshape((-1, 2)), boxsize=[9999999, np.pi*2]) # use a 2-pi periodic condition for polar angle (and basically infinity for ratio)
 
-triangles_path = "TripleTrianglePlatesolveDatabase/TripleTriangle_pattern_data.npz"
 def work(q):
     print("working on loading triangles")
     try:
-        q.put(TriangleData(np.load(triangles_path)))
+        q.put(TriangleData(np.load(get_triangle_db_path())))
         print("preloaded triangles")
     except Exception:
         print("no triangles platesolving database found: will now generate one (this will take a few minutes)")
         platesolve_new.generate()
-        q.put(TriangleData(np.load(triangles_path)))
+        q.put(TriangleData(np.load(get_triangle_db_path())))
     print("finished preparation work")
 
 def prepare_triangles():
@@ -52,7 +52,7 @@ def open_catalogue(path, debug_folder=None, **kwaargs):
     if not path in _cache.catalogue_cache:
         if path == 'gaia':
             _cache.catalogue_cache[path] = gaia_search.dbs_gaia(**kwaargs)
-        elif path == triangles_path:
+        elif path == get_triangle_db_path():
             print(_cache.prepare_process, _cache.prepare_process.is_alive())
             i = 1          
             while _cache.q.empty() and not path in _cache.catalogue_cache:

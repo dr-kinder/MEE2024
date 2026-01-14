@@ -3,7 +3,7 @@ import astropy.units as u
 #from astropy.coordinates import SkyCoord
 import matplotlib.pyplot as plt
 import numpy as np
-import StarData
+from mee2024 import StarData
 
 '''
 coord = SkyCoord(ra=280, dec=-60, unit=(u.degree, u.degree), frame='icrs')

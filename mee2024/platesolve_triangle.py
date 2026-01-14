@@ -15,7 +15,7 @@ import itertools
 import zipfile
 import pandas as pd
 from collections import defaultdict
-import transforms
+from mee2024 import transforms
 import itertools
 import json
 import matplotlib.pyplot as plt
@@ -24,8 +24,8 @@ import time
 from collections import deque
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components
-import database_cache
-from MEE2024util import resource_path, get_bbox
+from mee2024 import database_cache
+from mee2024.MEE2024util import resource_path, get_bbox, get_triangle_db_path
 from sklearn.neighbors import NearestNeighbors
 import math
 
@@ -186,7 +186,7 @@ def compute_platescale(triangles, pattern_data, anchors, match_cand, match_data,
     return scale, roll, center_vect, rmatrix, target
 
 def load():
-    data = database_cache.open_catalogue("TripleTrianglePlatesolveDatabase/TripleTriangle_pattern_data.npz")
+    data = database_cache.open_catalogue(get_triangle_db_path())
     return data.kd_tree, data.anchors, data.pattern_ind, data.pattern_data, data.triangles
 
 def match_triangles_inner(centroids, image_shape, options, kd_tree, anchors, pattern_ind, pattern_data, triangles):

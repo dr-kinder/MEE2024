@@ -8,10 +8,10 @@ from scipy.spatial.distance import pdist, cdist
 from sklearn.preprocessing import normalize
 import itertools
 import os
-from database_lookup2 import database_searcher
-from MEE2024util import resource_path
+from mee2024.database_lookup2 import database_searcher
+from mee2024.MEE2024util import resource_path, get_triangle_db_path
 from pathlib import Path
-import database_cache
+from mee2024 import database_cache
 
 def generate():
     dbs = database_cache.open_catalogue(resource_path("resources/compressed_tycho2024epoch.npz"))
@@ -148,8 +148,9 @@ def generate():
             dphi = dphi % (2 * np.pi)
             triangles[i, n, 0] = ratio
             triangles[i, n, 1] = dphi
-    Path("TripleTrianglePlatesolveDatabase").mkdir(exist_ok=True)
-    np.savez_compressed("TripleTrianglePlatesolveDatabase/TripleTriangle_pattern_data.npz", anchors = vectors_kept, pattern_ind=pattern_ind, pattern_data=pattern_data, triangles=triangles)
+    triangles_path = get_triangle_db_path()
+    triangles_path.parent.mkdir(exist_ok=True)
+    np.savez_compressed(triangles_path, anchors = vectors_kept, pattern_ind=pattern_ind, pattern_data=pattern_data, triangles=triangles)
     print(f"completed generating triangle database -- {triangles.size//2} triangles saved")        
             
 if __name__ == '__main__':

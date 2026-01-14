@@ -11,9 +11,10 @@ import json
 import logging
 import numpy as np
 from pathlib import Path
+from platformdirs import user_data_dir
 
 def _version():
-    return 'v0.5.4'
+    return 'v0.6.0'
 
 '''
 if options['output_dir'] is empty, then output there
@@ -39,6 +40,17 @@ def resource_path(relative_path):
         # pip-installed package
         package_dir = Path(__file__).parent
         return str(package_dir / relative_path)
+
+def get_triangle_db_path():
+    base = Path(
+        user_data_dir(
+            appname="mee2024",
+            appauthor="andrew551",  # optional but recommended
+        )
+    )
+    db_dir = base / "TripleTrianglePlatesolveDatabase"
+    db_dir.mkdir(parents=True, exist_ok=True)
+    return db_dir / "TripleTriangle_pattern_data.npz"
 
 '''
 open config.txt and read parameters

@@ -3,11 +3,11 @@
 Version 6 May 2024
 """
 
-import transforms
+from mee2024 import transforms
 import numpy as np
-from MEE2024util import output_path, date_string_to_float
-import refraction_correction
-import distortion_polynomial
+from mee2024.MEE2024util import output_path, date_string_to_float
+from mee2024 import refraction_correction
+from mee2024 import distortion_polynomial
 import matplotlib.pyplot as plt
 import scipy
 

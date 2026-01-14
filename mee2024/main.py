@@ -14,8 +14,8 @@ import numpy as np
 
 import os
 import sys
-import stacker_implementation
-import UI_handler
+from mee2024 import stacker_implementation
+from mee2024 import UI_handler
 #import CLI_handler
 from astropy.io import fits
 import cProfile
@@ -26,9 +26,9 @@ import json
 import time
 from multiprocessing import freeze_support
 import glob
-import MEE2024util
+from mee2024 import MEE2024util
 import datetime
-import database_cache
+from mee2024 import database_cache
 from multiprocessing import Process, Manager
 import matplotlib
 matplotlib.use("TkAgg") # fix exe bug
@@ -150,14 +150,8 @@ def handle_files(files, options, *, flag_command_line = False):
         if not flag_command_line:
             sg.popup_ok('ERROR message: ' + traceback.format_exc()) # show pop_up of error message
 
-"""
--------------------------------------------------------------------------------------------
-start of program
---------------------------------------------------------------------------------------------
-"""
-if __name__ == '__main__':
+def main():
     freeze_support() # enables multiprocessing for py-2-exe
-    
     database_cache.prepare_triangles()
     files = []
     # check for CLI input (unimplemented)
@@ -188,3 +182,11 @@ if __name__ == '__main__':
     if database_cache._cache.prepare_process.is_alive():
         database_cache._cache.prepare_process.terminate() # terminate the prepare thread
         database_cache._cache.q._close()
+
+"""
+-------------------------------------------------------------------------------------------
+start of program
+--------------------------------------------------------------------------------------------
+"""
+if __name__ == '__main__':
+    main()
