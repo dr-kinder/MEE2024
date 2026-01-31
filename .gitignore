@@ -12,3 +12,5 @@ mee2024/TripleTrianglePlatesolveDatabase/TripleTriangle_pattern_dataB.npz
 mee2024/build/
 mee2024/dist/
 TripleTrianglePlatesolveDatabase/TripleTriangle_pattern_data.npz
+
+*.swp

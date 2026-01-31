@@ -198,11 +198,15 @@ def get_img_data(f, maxsize=(30, 18), first=False):
 def inputUI(options):
     popup_messages = {"no_file_error": "Error: file not entered! Please enter file(s)", "no_folder_error": "Error: Output folder not entered! Please enter folder"}
         
+    # Try to make fonts bigger.
+    sg.set_options(font=("Helvetica", 16))
+
     sg.theme('Dark2')
     sg.theme_button_color(('white', '#500000'))
 
     layout_title = [
-        [sg.Text('MEE 2024 Stacker UI', font='Any 14', key='MEE 2024 Stacker UI')],
+        # [sg.Text('MEE 2024 Stacker UI', font='Any 14', key='MEE 2024 Stacker UI')],
+        [sg.Text('MEE 2024 Stacker UI', key='MEE 2024 Stacker UI')],
     ]
 
     layout_file_input = [
@@ -267,7 +271,8 @@ def inputUI(options):
         [sg.Text('Rough fit threshold (arcsec)',size=(32,1)), sg.Input(default_text=str(options['rough_match_threshhold']),size=(12,1),key='rough_match_threshhold')],
         [sg.Checkbox('Crop circle? (input 0.0 to 1.0)',size=(30,1), default=options['crop_circle'], key='crop_circle'), sg.Input(default_text=str(options['crop_circle_thresh']),size=(12,1),key='crop_circle_thresh',enable_events=True)],
         [sg.Checkbox('Discard double-stars or stars with missing proper-motion',size=(60,1), default=options['remove_double_tab2'], key='remove_double_tab2')],
-        [sg.Text('Corrections for aberration, parallax, and refraction:', font=('Helvetica', 12))],
+        # [sg.Text('Corrections for aberration, parallax, and refraction:', font=('Helvetica', 12))],
+        [sg.Text('Corrections for aberration, parallax, and refraction:')],
         [sg.Checkbox('Enable aberration and parallax?', default=options['enable_corrections'], key='enable_corrections', enable_events=True)],
         [sg.Checkbox('Enable gravitational correction?', default=options['enable_gravitational_def'], key='enable_gravitational_def', enable_events=True)],
         [sg.Checkbox('Simultaneous deflection constant and platescale fit', default=options['gravity_sweep'], key='gravity_sweep', enable_events=True)],
@@ -299,7 +304,7 @@ def inputUI(options):
     tab1_layout = layout_file_input + layout_folder_output + layout_base    
     tab2_layout = layout_distortion
 
-    layout = [layout_title + [sg.TabGroup([[sg.Tab('Tab 1 - Find centroids', tab1_layout),
+    layout = layout_title + [[sg.TabGroup([[sg.Tab('Tab 1 - Find centroids', tab1_layout),
                          sg.Tab('Tab 2 - Compute Distortion', tab2_layout),
                          sg.Tab('Tab 3 - Eclipse Analysis', layout_eclipse),
                          ]],
@@ -307,7 +312,23 @@ def inputUI(options):
                        selected_title_color='red', tab_location='top')
                ]]
     
-    window = sg.Window('MEE2024 '+_version(), layout, finalize=True)
+    # ----------------------------
+    # Original code
+    # ----------------------------
+    # window = sg.Window('MEE2024 '+_version(), layout, finalize=True)
+    # window = sg.Window('MEE2024 '+_version(), layout, resizable=True, finalize=True)
+
+    # ----------------------------
+    # Attempt a scrollable layout.
+    # ----------------------------
+    # Wrap it in a scrollable column
+    # ----------------------------
+    scrollable_layout = [[sg.Column(layout, scrollable=True, vertical_scroll_only=True, size=(None, 600))]]
+    window = sg.Window('MEE2024 '+_version(), scrollable_layout, resizable=True, finalize=True)
+    # ----------------------------
+    # End modification.
+    # ----------------------------
+
     window.BringToFront()
     
     def check_file(s):

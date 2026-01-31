@@ -1,5 +1,7 @@
+AUTHORS
 LICENSE
 README.md
+pyproject.toml
 setup.cfg
 mee2024/MEE2024util.py
 mee2024/StarData.py
@@ -24,3 +26,4 @@ mee2024.egg-info/dependency_links.txt
 mee2024.egg-info/entry_points.txt
 mee2024.egg-info/requires.txt
 mee2024.egg-info/top_level.txt
+mee2024/resources/compressed_tycho2024epoch.npz
