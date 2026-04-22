@@ -64,7 +64,8 @@ FROM gaiadr3.gaia_source \
 WHERE "
 
     def helper(ra, dec):
-        return f'(ra BETWEEN {(ra - distance/3600/np.cos(dec)):.5f} AND {(ra + distance / 3600 / np.cos(dec)):.5f} AND \
+        # ra and dec are in degrees here; np.cos requires radians
+        return f'(ra BETWEEN {(ra - distance/3600/np.cos(np.radians(dec))):.5f} AND {(ra + distance / 3600 / np.cos(np.radians(dec))):.5f} AND \
 dec BETWEEN  {(dec - distance/3600):.5f} AND {(dec + distance / 3600):.5f})'
         
     
