@@ -484,6 +484,14 @@ def inputUI(options):
                 window[wkey].update(bool(loaded[opt]))
         if 'eclipse_method' in loaded:
             window['eclipse_method'].update(value=str(loaded['eclipse_method']))
+        # If no explicit input file, find the most recent distortion_data*.zip in the output dir.
+        if '-FILE3-' not in loaded:
+            search_dir = loaded.get('output_dir', '')
+            if search_dir:
+                zips = sorted(Path(search_dir).glob('distortion_data*.zip'),
+                              key=lambda p: p.stat().st_mtime)
+                if zips:
+                    window['-FILE3-'].update(str(zips[-1]))
 
     while True:
         event, values = window.read()
