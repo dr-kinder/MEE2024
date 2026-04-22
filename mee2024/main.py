@@ -141,8 +141,10 @@ def handle_files(files, options, *, flag_command_line = False):
     good_darks = precheck_files(files[1], options)
     good_flats = precheck_files(files[2], options)
 
-    try : 
-       stacker_implementation.do_stack(good_files, good_darks, good_flats, options)
+    try :
+        config_path = os.path.join(options['output_dir'], 'config_tab1.toml') if options['output_dir'].strip() else os.path.join(options['workDir'], 'config_tab1.toml')
+        MEE2024util.write_config_toml(options, config_path)
+        stacker_implementation.do_stack(good_files, good_darks, good_flats, options)
     except:
         print('ERROR ENCOUNTERED')
         traceback.print_exc()

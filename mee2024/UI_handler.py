@@ -205,6 +205,14 @@ def inputUI(options):
         [sg.Text('MEE 2024 Stacker UI', font='Any 14', key='MEE 2024 Stacker UI')],
     ]
 
+    layout_config1 = [
+        [sg.Text('Config file', size=(7, 1)),
+         sg.InputText(default_text='', size=(68, 1), key='-CONFIG1-'),
+         sg.FileBrowse('Browse', file_types=(("TOML config", "*.toml"),), initial_folder=options['workDir']),
+         sg.Button('Load Config', key='Load Config 1')],
+        [sg.HorizontalSeparator()],
+    ]
+
     layout_file_input = [
         [sg.Text('File(s)', size=(7, 1), key = 'File(s)'), sg.InputText(default_text=options['workDir'],size=(75,1),key='-FILE-'),
          sg.FilesBrowse('Choose images to stack', key = 'Choose images to stack', file_types=(("Image Files (FIT, TIF, PNG)", "*.fit *.fts *.fits *.tif *.tiff *.png *.jpg *.jpeg"),),initial_folder=options['workDir'])],
@@ -249,6 +257,14 @@ def inputUI(options):
     [sg.Push(), sg.Button('OK'), sg.Cancel(), sg.Button("Open output folder", key='Open output folder', enable_events=True)]
     ]
 
+    layout_config2 = [
+        [sg.Text('Config file', size=(7, 1)),
+         sg.InputText(default_text='', size=(68, 1), key='-CONFIG2-'),
+         sg.FileBrowse('Browse', file_types=(("TOML config", "*.toml"),), initial_folder=options['workDir2']),
+         sg.Button('Load Config', key='Load Config 2')],
+        [sg.HorizontalSeparator()],
+    ]
+
     layout_distortion = [
         [sg.Text('File(s)', size=(7, 1), key = 'File2(s)'), sg.InputText(default_text=options['workDir2'],size=(75,1),key='-FILE2-'),
          sg.FilesBrowse('Choose data (data.zip)', key = 'Choose data.zip', file_types=(("zip files (.zip)", "*.zip"),),initial_folder=options['workDir2'])],
@@ -283,6 +299,14 @@ def inputUI(options):
         [sg.Push(), sg.Button('OK', key='OK2'), sg.Cancel(key='Cancel2'), sg.Button("Open output folder", key='Open output folder2', enable_events=True)]
     ]
 
+    layout_config3 = [
+        [sg.Text('Config file', size=(7, 1)),
+         sg.InputText(default_text='', size=(68, 1), key='-CONFIG3-'),
+         sg.FileBrowse('Browse', file_types=(("TOML config", "*.toml"),), initial_folder=options['output_dir']),
+         sg.Button('Load Config', key='Load Config 3')],
+        [sg.HorizontalSeparator()],
+    ]
+
     layout_eclipse = [
         [sg.Text('File', size=(7, 1), key = 'File3(s)'), sg.InputText(default_text=options['output_dir'],size=(75,1),key='-FILE3-'),
          sg.FilesBrowse('Choose data (distortion.zip)', key = 'Choose distortion.zip', file_types=(("zip files (.zip)", "*.zip"),),initial_folder=options['output_dir'])],
@@ -296,12 +320,12 @@ def inputUI(options):
         [sg.Push(), sg.Button('OK', key='OK3'), sg.Cancel(key='Cancel3'), sg.Button("Open output folder", key='Open output folder3', enable_events=True)],
     ]
 
-    tab1_layout = layout_file_input + layout_folder_output + layout_base    
-    tab2_layout = layout_distortion
+    tab1_layout = layout_config1 + layout_file_input + layout_folder_output + layout_base
+    tab2_layout = layout_config2 + layout_distortion
 
     layout = [layout_title + [sg.TabGroup([[sg.Tab('Tab 1 - Find centroids', tab1_layout),
                          sg.Tab('Tab 2 - Compute Distortion', tab2_layout),
-                         sg.Tab('Tab 3 - Eclipse Analysis', layout_eclipse),
+                         sg.Tab('Tab 3 - Eclipse Analysis', layout_config3 + layout_eclipse),
                          ]],
                        key='-group2-', title_color='gray',
                        selected_title_color='red', tab_location='top')
@@ -334,6 +358,91 @@ def inputUI(options):
 
     update_corrections_enabled(options['enable_corrections'] or options['enable_gravitational_def'], options['enable_corrections_ref'], options['guess_date'])
     update_tab1_enabled(options['centroid_gaussian_subtract'] or options['sensitive_mode_stack'], options['delete_saturated_blob'])
+
+    def _apply_tab1(loaded):
+        str_inputs = {
+            'workDir': '-FILE-', '-DARK-': '-DARK-', '-FLAT-': '-FLAT-',
+            'output_dir': 'output_dir', 'd': '-d-',
+            'blob_radius_extra': '-blob_radius_extra-',
+            'centroid_gap_blob': '-centroid_gap_blob-',
+            'centroid_gaussian_thresh': '-sigma_thresh-',
+            'min_area': '-min_area-', 'sigma_subtract': 'sigma_subtract',
+        }
+        bool_checks = {
+            'flag_display': 'Show graphics', 'save_dark_flat': 'save_dark_flat',
+            'float_fits': 'float_fits', 'delete_saturated_blob': 'delete_saturated_blob',
+            'centroid_gaussian_subtract': 'centroid_gaussian_subtract',
+            'sensitive_mode_stack': 'sensitive_mode_stack',
+            'remove_edgy_centroids': 'remove_edgy_centroids',
+        }
+        for opt, wkey in str_inputs.items():
+            if opt in loaded:
+                window[wkey].update(str(loaded[opt]))
+        for opt, wkey in bool_checks.items():
+            if opt in loaded:
+                window[wkey].update(bool(loaded[opt]))
+        if 'background_subtraction_mode' in loaded:
+            window['background_subtraction_mode'].update(value=str(loaded['background_subtraction_mode']))
+        if 'blob_saturation_level' in loaded:
+            window['blob_saturation_level'].update(value=int(loaded['blob_saturation_level']))
+
+    def _apply_tab2(loaded):
+        str_inputs = {
+            'workDir2': '-FILE2-', 'distortion_reference_files': 'distortion_reference_files',
+            'output_dir': 'output_dir2', 'max_star_mag_dist': 'max_star_mag_dist',
+            'observation_date': 'observation_date', 'distortion_fit_tol': 'distortion_fit_tol',
+            'rough_match_threshhold': 'rough_match_threshhold',
+            'crop_circle_thresh': 'crop_circle_thresh',
+            'observation_time': 'observation_time', 'observation_lat': 'observation_lat',
+            'observation_long': 'observation_long', 'observation_temp': 'observation_temp',
+            'observation_pressure': 'observation_pressure',
+            'observation_humidity': 'observation_humidity',
+            'observation_height': 'observation_height',
+            'observation_wavelength': 'observation_wavelength',
+        }
+        bool_checks = {
+            'flag_display2': 'Show graphics2', 'guess_date': 'guess_date',
+            'crop_circle': 'crop_circle', 'remove_double_tab2': 'remove_double_tab2',
+            'enable_corrections': 'enable_corrections',
+            'enable_gravitational_def': 'enable_gravitational_def',
+            'gravity_sweep': 'gravity_sweep',
+            'enable_corrections_ref': 'enable_corrections_ref',
+        }
+        combos = {
+            'distortion_fixed_coefficients': 'distortion_fixed_coefficients',
+            'distortionOrder': 'distortionOrder',
+        }
+        for opt, wkey in str_inputs.items():
+            if opt in loaded:
+                window[wkey].update(str(loaded[opt]))
+        for opt, wkey in bool_checks.items():
+            if opt in loaded:
+                window[wkey].update(bool(loaded[opt]))
+        for opt, wkey in combos.items():
+            if opt in loaded:
+                window[wkey].update(value=str(loaded[opt]))
+
+    def _apply_tab3(loaded):
+        str_inputs = {
+            'output_dir': 'output_dir3',
+            'eclipse_limiting_mag': 'eclipse_limiting_mag',
+            'limit_radial_sun_radii_value': 'limit_radial_sun_radii_value',
+        }
+        bool_checks = {
+            'flag_display3': 'Show graphics3',
+            'limit_radial_sun_radii': 'limit_radial_sun_radii',
+            'remove_double_stars_eclipse': 'remove_double_stars_eclipse',
+            'object_centre_moon': 'object_centre_moon',
+        }
+        for opt, wkey in str_inputs.items():
+            if opt in loaded:
+                window[wkey].update(str(loaded[opt]))
+        for opt, wkey in bool_checks.items():
+            if opt in loaded:
+                window[wkey].update(bool(loaded[opt]))
+        if 'eclipse_method' in loaded:
+            window['eclipse_method'].update(value=str(loaded['eclipse_method']))
+
     while True:
         event, values = window.read()
         if event==sg.WIN_CLOSED or event=='Cancel' or event=='Cancel2':
@@ -369,6 +478,8 @@ def inputUI(options):
                         options['workDir2'] = str(Path(file).parent)
                         interpret_UI_values2(options, values)
                         MEE2024util.write_ini(options)
+                        config_path = os.path.join(options['output_dir'], 'config_tab2.toml') if options['output_dir'].strip() else os.path.join(options['workDir2'], 'config_tab2.toml')
+                        MEE2024util.write_config_toml(options, config_path)
                         distortion_fitter.match_and_fit_distortion(file, options, None)
                         print('Done!')
                         #sg.Popup('Done!', keep_on_top=True)
@@ -390,6 +501,8 @@ def inputUI(options):
                 try:
                     interpret_UI_values3(options, values)
                     MEE2024util.write_ini(options)
+                    config_path = os.path.join(options['output_dir'], 'config_tab3.toml') if options['output_dir'].strip() else 'config_tab3.toml'
+                    MEE2024util.write_config_toml(options, config_path)
                     eclipse_analysis.eclipse_analysis(values['-FILE3-'], options)
                     print('Done!')
                     #sg.Popup('Done!', keep_on_top=True)
@@ -415,6 +528,52 @@ def inputUI(options):
                 except Exception as inst:
                     traceback.print_exc()
                     sg.Popup('Error: ' + inst.args[0], keep_on_top=True)
+        if event == 'Load Config 1':
+            path = values['-CONFIG1-'].strip()
+            if not path:
+                sg.popup_ok('No config file selected.', keep_on_top=True)
+            else:
+                try:
+                    loaded = MEE2024util.load_config_toml(path)
+                    options.update(loaded)
+                    _apply_tab1(loaded)
+                    update_tab1_enabled(
+                        options['centroid_gaussian_subtract'] or options['sensitive_mode_stack'],
+                        options['delete_saturated_blob'])
+                    sg.popup_ok(f'Loaded: {os.path.basename(path)}', keep_on_top=True)
+                except Exception as inst:
+                    traceback.print_exc()
+                    sg.popup_ok('Error loading config: ' + str(inst), keep_on_top=True)
+        if event == 'Load Config 2':
+            path = values['-CONFIG2-'].strip()
+            if not path:
+                sg.popup_ok('No config file selected.', keep_on_top=True)
+            else:
+                try:
+                    loaded = MEE2024util.load_config_toml(path)
+                    options.update(loaded)
+                    _apply_tab2(loaded)
+                    update_corrections_enabled(
+                        options['enable_corrections'] or options['enable_gravitational_def'],
+                        options['enable_corrections_ref'],
+                        options['guess_date'])
+                    sg.popup_ok(f'Loaded: {os.path.basename(path)}', keep_on_top=True)
+                except Exception as inst:
+                    traceback.print_exc()
+                    sg.popup_ok('Error loading config: ' + str(inst), keep_on_top=True)
+        if event == 'Load Config 3':
+            path = values['-CONFIG3-'].strip()
+            if not path:
+                sg.popup_ok('No config file selected.', keep_on_top=True)
+            else:
+                try:
+                    loaded = MEE2024util.load_config_toml(path)
+                    options.update(loaded)
+                    _apply_tab3(loaded)
+                    sg.popup_ok(f'Loaded: {os.path.basename(path)}', keep_on_top=True)
+                except Exception as inst:
+                    traceback.print_exc()
+                    sg.popup_ok('Error loading config: ' + str(inst), keep_on_top=True)
         if event == 'centroid_gaussian_subtract' or event == 'sensitive_mode_stack' or event == 'delete_saturated_blob':
             if event == 'centroid_gaussian_subtract' and values['centroid_gaussian_subtract']:
                 window['sensitive_mode_stack'].update(True)
