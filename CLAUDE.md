@@ -17,7 +17,9 @@ See `plans.md` for full detail.
 ## Branching Strategy
 
 - `main` — Jesse's fork; Track 1 CLI work and Track 2 toolkit work
-- `gui-improvements` — GUI-only changes (TOML load button, etc.) for sharing with the MEE group repo; branch off `main` before any architectural changes
+- `gui-improvements` — GUI-only changes for sharing with the MEE group repo; branch off `main` before any architectural changes
+
+**Rule:** Non-GUI files (docs, configs, notes, tests, CLAUDE.md, skills) originate on `main` and are cherry-picked into `gui-improvements`. GUI-only commits (UI_handler.py, main.py GUI dispatch) stay on `gui-improvements` until that branch is ready to merge back. When `main` accumulates new non-GUI commits, cherry-pick them into `gui-improvements` to keep both branches current.
 
 ## Environment
 

@@ -1,0 +1,190 @@
+---
+format:
+  html:
+    toc: false
+    theme: cosmo
+  docx: default
+  pdf:
+    geometry: margin=1in
+    fontsize: 11pt
+---
+
+::: {.content-visible when-format="pdf"}
+\noindent\rule{\textwidth}{1pt}
+:::
+
+**To:** MEE\@OIT Research Group, Oregon Institute of Technology\
+**From:** Jesse Kinder\
+**Subject:** Reproducible Analysis with TOML Configuration Files\
+**Date:** 2026-04-22
+
+::: {.content-visible when-format="pdf"}
+\noindent\rule{\textwidth}{1pt}
+:::
+
+---
+
+## Foreword
+
+The MEE data analysis pipeline requires setting many parameters carefully and
+consistently across multiple runs.
+The goal of this work is to make the analysis reproducible by storing all
+parameters in human-readable configuration files that can be shared,
+version-controlled, and loaded directly into the GUI.
+
+---
+
+## Summary
+
+The MEE pipeline involves three analysis stages — stacking images and finding
+star centroids (Tab 1), computing the optical distortion (Tab 2), and fitting
+the deflection data (Tab 3).  Each stage depends on a dozen or more parameters:
+detection thresholds, distortion polynomial order, observing conditions,
+limiting magnitudes, and more.  Currently, these are adjusted by hand each time
+the GUI is opened.  There is no record of which values were used for a given
+run, making it difficult to reproduce a result or to compare two runs that
+differ only in one parameter.
+
+The solution introduced here is a set of TOML configuration files — one per
+pipeline stage.  TOML is a simple, human-readable format that supports
+comments, so each parameter can be documented alongside its value.  A "Load
+Config" button was added to the top of each GUI tab.  Clicking it reads a
+configuration file and populates all fields automatically, replacing manual
+entry.  In addition, when the Run button is clicked, the exact settings used
+for that run are automatically written to the output folder as a configuration
+file.  This means every output folder is self-documenting: the configuration
+that produced it is stored alongside the results, even if fields were adjusted
+after loading.
+
+A complete, successful analysis of the Station 1 sample data was carried out
+using only TOML configuration files as input.  All five pipeline stages ran
+without manually adjusting a single field in the GUI.
+
+---
+
+## Discussion
+
+### Configuration Files for Station 1
+
+The Station 1 pipeline requires five configuration files, one per analysis
+step:
+
+| File | Tab | Purpose |
+|------|-----|---------|
+| `find-stars-calibration.toml` | Tab 1 | Stack zenith/calibration images, find centroids |
+| `find-stars-eclipse.toml` | Tab 1 | Stack eclipse images, find centroids |
+| `compute-distortion-zenith.toml` | Tab 2 | Fit full distortion polynomial from zenith data |
+| `compute-distortion-eclipse.toml` | Tab 2 | Re-fit plate scale only, fixing high-order terms |
+| `fit-data.toml` | Tab 3 | Measure stellar deflections, fit Einstein coefficient |
+
+The first two are loaded in separate Tab 1 runs; the next two in separate Tab 2
+runs; the last in Tab 3.  Each file contains all parameters needed for that
+stage, with comments explaining what each parameter controls.
+
+### What a Configuration File Looks Like
+
+Below is a short excerpt from the zenith Tab 2 configuration file.
+
+```toml
+# Station 1 — compute distortion (zenith field)
+# Observation: 2024-04-07, Durango, Mexico
+
+[input]
+input_folder = "/path/to/output/station1-calibration"
+
+[fit]
+distortionOrder          = "quintic"   # ZWO ASI6200MM requires quintic
+distortion_fit_tol       = 2.0         # arcseconds; loosen slightly for wide-field
+rough_match_threshhold   = 100.0       # arcsec; wider window for first pass
+distortion_fixed_coefficients = "None" # free fit — all coefficients float
+
+[observatory]
+observation_date     = "2024-04-07"
+observation_lat      = "23 50 58.3 N"
+observation_long     = "105 16 22.1 W"
+observation_height   = 2400.0          # meters
+observation_wavelength = 0.625         # microns (red filter)
+```
+
+Every parameter has a comment explaining what it does and, where relevant, why
+a particular value was chosen.  New users can read the file and understand
+the analysis without prior knowledge of the code.
+
+### Loading a Configuration in the GUI
+
+Loading a configuration is a two-step process.  At the top of each tab there
+is a file field with two buttons: **Browse** and **Load Config**.
+
+1. Click **Browse** to open a file dialog and select a `.toml` file.  The path
+   appears in the field to the left.
+2. Click **Load Config** to import the settings.  All GUI fields on that tab
+   are updated immediately, and a small popup confirms the file was loaded.
+
+The Browse/Load separation is intentional: selecting a file does not change
+anything until Load is explicitly clicked.
+
+### The Output Configuration File
+
+When the Run button is clicked, the settings currently in the GUI are written
+to a file called `config_tab1.toml`, `config_tab2.toml`, or `config_tab3.toml`
+in the output folder, *before* processing begins.  This is distinct from the
+input configuration: it records what was actually used, including any manual
+adjustments made after loading.
+
+This makes it possible to recover the exact analysis parameters for any output
+folder, which is essential for comparing runs and for publishing reproducible
+results.
+
+### A Known Limitation: Timestamped Output Files
+
+The current GUI names its output files with a timestamp embedded in the
+filename — for example, `centroid_data20260422143012.zip`.  Because the
+timestamp is not known when the configuration file is written, it is not
+possible to hard-code the name of a later tab's input file in the
+configuration.
+
+The current workaround: when a Tab 2 or Tab 3 configuration is loaded and no
+explicit input file is specified, the GUI searches the output directory for
+the most recently modified file matching the expected pattern
+(`centroid_data*.zip` for Tab 2; `distortion_data*.zip` for Tab 3) and
+populates the file field automatically.  This is reliable for a single,
+sequential pipeline run.  It would fail if multiple output files from
+different runs were present in the same folder — a reason to keep output
+folders organized.
+
+A future improvement will replace the timestamped ZIP files with
+descriptively named outputs (`{run}_centroids.csv`, `{run}_distortion.toml`,
+etc.) that can be specified in configuration files directly.
+
+### GUI Improvements
+
+Two usability improvements were made at the same time.  The font size was
+increased from the system default to 14 pt, making the labels and fields
+significantly more legible.  A vertical scrollbar was added to each tab so
+that all fields remain accessible regardless of window height or screen size.
+The window is also now resizable.
+
+### Future Work
+
+The immediate value of this workflow is eliminating manual parameter entry and
+creating an audit trail.  The deeper value is that it enables systematic,
+reproducible studies of how the analysis choices affect the final result.
+Some questions that are now straightforward to investigate:
+
+- **Choice of calibration field.**  Does the particular star field used for
+  the zenith calibration affect the distortion coefficients, and if so, by
+  how much?  Run the analysis with two or more different calibration sets and
+  compare.
+
+- **Number of eclipse images.**  How does precision improve as more eclipse
+  frames are included?  Run the analysis on subsets of 10, 20, 50, 100, ...
+  images and plot precision as a function of sample size.
+
+- **Parameter sensitivity.**  Which analysis parameters have the most
+  significant effect on the measured deflection?  A grid of runs varying one
+  parameter at a time would reveal the most important knobs to control.
+
+These studies are easy to describe but require many pipeline runs.  The next
+development step is a set of command-line scripts that can run each stage
+without opening the GUI, making batch processing and automated parameter
+sweeps practical.
