@@ -463,6 +463,17 @@ def inputUI(options):
                               key=lambda p: p.stat().st_mtime)
                 if zips:
                     window['-FILE2-'].update(str(zips[-1]))
+        # If distortion_reference_files points to a non-existent file, find the most
+        # recent distortion_data*.zip in the same directory.
+        ref = loaded.get('distortion_reference_files', '')
+        if ref:
+            ref_path = Path(ref.split(';')[0].strip())
+            if not ref_path.exists():
+                zips = sorted(ref_path.parent.glob('distortion_data*.zip'),
+                              key=lambda p: p.stat().st_mtime)
+                if zips:
+                    window['distortion_reference_files'].update(str(zips[-1]))
+                    options['distortion_reference_files'] = str(zips[-1])
 
     def _apply_tab3(loaded):
         str_inputs = {
