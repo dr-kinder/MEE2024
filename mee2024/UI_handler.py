@@ -200,9 +200,10 @@ def inputUI(options):
         
     sg.theme('Dark2')
     sg.theme_button_color(('white', '#500000'))
+    sg.set_options(font=('Any', 14))
 
     layout_title = [
-        [sg.Text('MEE 2024 Stacker UI', font='Any 14', key='MEE 2024 Stacker UI')],
+        [sg.Text('MEE 2024 Stacker UI', font='Any 18', key='MEE 2024 Stacker UI')],
     ]
 
     layout_config1 = [
@@ -320,18 +321,23 @@ def inputUI(options):
         [sg.Push(), sg.Button('OK', key='OK3'), sg.Cancel(key='Cancel3'), sg.Button("Open output folder", key='Open output folder3', enable_events=True)],
     ]
 
-    tab1_layout = layout_config1 + layout_file_input + layout_folder_output + layout_base
-    tab2_layout = layout_config2 + layout_distortion
+    def _scrollable(rows):
+        return [[sg.Column(rows, scrollable=True, vertical_scroll_only=True,
+                           expand_x=True, size=(None, 700))]]
+
+    tab1_layout = _scrollable(layout_config1 + layout_file_input + layout_folder_output + layout_base)
+    tab2_layout = _scrollable(layout_config2 + layout_distortion)
+    tab3_layout = _scrollable(layout_config3 + layout_eclipse)
 
     layout = [layout_title + [sg.TabGroup([[sg.Tab('Tab 1 - Find centroids', tab1_layout),
                          sg.Tab('Tab 2 - Compute Distortion', tab2_layout),
-                         sg.Tab('Tab 3 - Eclipse Analysis', layout_config3 + layout_eclipse),
+                         sg.Tab('Tab 3 - Eclipse Analysis', tab3_layout),
                          ]],
                        key='-group2-', title_color='gray',
                        selected_title_color='red', tab_location='top')
                ]]
-    
-    window = sg.Window('MEE2024 '+_version(), layout, finalize=True)
+
+    window = sg.Window('MEE2024 '+_version(), layout, finalize=True, resizable=True)
     window.BringToFront()
     
     def check_file(s):
