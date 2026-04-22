@@ -455,6 +455,14 @@ def inputUI(options):
         for opt, wkey in combos.items():
             if opt in loaded:
                 window[wkey].update(value=str(loaded[opt]))
+        # If no explicit input file, find the most recent centroid_data*.zip in the output dir.
+        if 'workDir2' not in loaded:
+            search_dir = loaded.get('output_dir', '')
+            if search_dir:
+                zips = sorted(Path(search_dir).glob('centroid_data*.zip'),
+                              key=lambda p: p.stat().st_mtime)
+                if zips:
+                    window['-FILE2-'].update(str(zips[-1]))
 
     def _apply_tab3(loaded):
         str_inputs = {
