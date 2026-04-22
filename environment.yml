@@ -1,0 +1,21 @@
+name: mee-and-claude
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy
+  - astropy
+  - photutils
+  - scipy
+  - matplotlib
+  - scikit-image
+  - scikit-learn
+  - statsmodels
+  - pandas
+  - opencv
+  - platformdirs
+  - pip
+  - pip:
+    - astroquery==0.4.6
+    - FreeSimpleGUI

@@ -1,0 +1,82 @@
+# ============================================================
+# fit-data — Eclipse Deflection Analysis
+# ============================================================
+# Pipeline stage: Tab 3 (eclipse_analysis.py)
+# This is the final stage: measure the gravitational deflection
+# of starlight and fit for the Einstein Coefficient L.
+#
+# For each star in the eclipse field, the pipeline compares the
+# distortion-corrected observed position to the Gaia catalog
+# position (after proper-motion, parallax, refraction, and
+# aberration corrections applied in the previous stage). The
+# residual displacement is the measured deflection.
+#
+# The deflection model is:
+#   Δθ = L × (1.7512 arcsec) / R   (R in solar radii)
+# where L = 1 corresponds to Einstein's GR prediction.
+#
+# The fit solves for L simultaneously with three nuisance
+# parameters (ΔRA, ΔDec, Δroll) that absorb residual pointing
+# errors. Stars at a range of angular distances from the Sun
+# are essential to break the degeneracy between L and a uniform
+# offset.
+#
+# Inputs:  {run_name}_distortion.toml from compute-distortion (eclipse)
+# Outputs: {run_name}_deflection.csv  — per-star deflection measurements
+#          diagnostic plots
+#
+# Sample data: Station 1, El Salto MX, 2024-04-08
+# ============================================================
+
+[run]
+run_name = "station1-eclipse"
+
+
+[input]
+# Distortion-corrected output from compute-distortion (eclipse run).
+# In the new pipeline format this is a TOML file; the legacy format
+# uses a .zip archive from the original GUI.
+input_file = "/Users/jesse/scratch/mee-and-claude/tests/output/station1-eclipse/station1-eclipse_distortion.toml"
+
+
+[output]
+output_dir = "/Users/jesse/scratch/mee-and-claude/tests/output/station1-eclipse"
+
+
+# ------------------------------------------------------------
+# Deflection analysis settings
+# ------------------------------------------------------------
+
+[analysis]
+# Analysis method to apply.
+# "Method 1": fits the deflection curve using star positions relative to Sun.
+# "Method 2": alternative formulation (cross-check).
+# "Method 1 & 2": run both and report results from each.
+eclipse_method = "Method 1 & 2"
+
+# Maximum Gaia magnitude of stars to include in the deflection fit.
+# Fainter stars have less precise centroids and can degrade the fit.
+# 11 is a conservative limit; increase to 12–13 if few stars are detected.
+eclipse_limiting_mag = 12.0
+
+# Restrict the analysis to stars within a fixed angular distance from the Sun.
+# Useful to exclude stars in heavily distorted corners of wide-field images,
+# or to match the radial range used in a reference analysis (e.g., Bruns 2017).
+limit_radial_sun_radii       = false
+limit_radial_sun_radii_value = 9.0    # maximum distance in solar radii
+
+# Discard stars with a catalog neighbor within double_star_cutoff arcseconds.
+# Blended centroids produce biased position measurements.
+# Less critical here than in compute-distortion because individual
+# outliers are easier to identify in the deflection plot.
+remove_double_stars_eclipse = true
+
+# Center the radial deflection calculation on the Moon instead of the Sun.
+# Leave false for all standard eclipse gravitational deflection analyses.
+# (Would be true only for a lunar gravitational deflection experiment.)
+object_centre_moon = false
+
+
+[display]
+# Show diagnostic plots (deflection vs. radial distance, residuals, etc.)
+flag_display3 = true

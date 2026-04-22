@@ -1,0 +1,140 @@
+# ============================================================
+# compute-distortion — Eclipse Field (fixed high-order terms)
+# ============================================================
+# Pipeline stage: Tab 2 (distortion_fitter.py)
+# Use this config for eclipse-day images. The stable, high-order
+# distortion coefficients (cubic and above) are FIXED at the
+# values measured from the zenith calibration run. Only the
+# linear and quadratic terms (plate scale, tilt) are allowed
+# to vary, absorbing thermal drift and refraction changes
+# between the calibration night and eclipse day.
+#
+# This is the critical step that ties the eclipse-day astrometry
+# to the zenith calibration while allowing for epoch-to-epoch
+# plate-scale variation.
+#
+# Inputs:  {run_name}_centroids.csv from find-stars (eclipse)
+#          distortion coefficients from compute-distortion-zenith
+# Outputs: {run_name}_distortion.toml — recalibrated coefficients
+#
+# Sample data: Station 1, El Salto MX, 2024-04-08
+# ============================================================
+
+[run]
+run_name = "station1-eclipse"
+
+
+[input]
+input_file = "/Users/jesse/scratch/mee-and-claude/tests/output/station1-eclipse/station1-eclipse_centroids.csv"
+
+# Path to the distortion output from the ZENITH run. The cubic
+# and higher-order coefficients will be read from this file and
+# held fixed during the eclipse fit.
+distortion_reference_files = "/Users/jesse/scratch/mee-and-claude/tests/output/station1-calibration/station1-calibration_distortion.toml"
+
+# The GUI label reads "Fix order higher than: <choice>".
+# "linear" means: fix all terms of degree ≥ 2 (quadratic and above),
+# and fit only the constant (offset) and linear (plate-scale/tilt) terms.
+# This is what was used in the Station 1 analysis: only the plate scale
+# and field tilt are re-fit from the eclipse-day calibration; all
+# higher-order geometric distortion is held fixed from the zenith run.
+# Options: None, constant, linear, quadratic, cubic, quartic, quintic, sextic, septic
+distortion_fixed_coefficients = "linear"
+
+
+[output]
+output_dir = "/Users/jesse/scratch/mee-and-claude/tests/output/station1-eclipse"
+
+
+# ------------------------------------------------------------
+# Star catalog
+# ------------------------------------------------------------
+
+[catalog]
+catalogue          = "gaia"
+max_star_mag_dist  = 15.0
+safety_limit_mag   = 13.0
+double_star_cutoff = 10.0   # arcseconds
+double_star_mag    = 17.0
+
+
+# ------------------------------------------------------------
+# Polynomial distortion fit
+# ------------------------------------------------------------
+
+[fitting]
+# Must match the order used in the zenith run.
+distortionOrder = "quintic"
+
+distortion_fit_tol     = 2.0    # arcseconds
+rough_match_threshhold = 100.0  # arcseconds
+
+# Removing doubles is more important here than for zenith, because
+# the eclipse field is sparser and a blended centroid contributes
+# more fractional error to the fit.
+remove_double_tab2 = false
+
+crop_circle        = false
+crop_circle_thresh = 1.0
+
+basis_type = "polynomial"
+
+
+# ------------------------------------------------------------
+# Observation date and time
+# ------------------------------------------------------------
+
+[date]
+# Must be the eclipse observation date.
+observation_date = "2024-04-08"
+guess_date       = false
+DEFAULT_DATE     = "2020-01-01"
+
+
+# ------------------------------------------------------------
+# Astrometric corrections
+# IMPORTANT: Enable aberration, parallax, and refraction for
+# the eclipse run. These corrections are small (< 1 arcsec) but
+# comparable to the distortion fit tolerance and can bias the
+# plate-scale measurement if omitted.
+# ------------------------------------------------------------
+
+[corrections]
+# Aberration (Earth's orbital velocity) + parallax (Earth's position).
+# Both use the Gaia catalog; requires observation time and location.
+enable_corrections = true
+
+# Atmospheric refraction. Depends on elevation angle and weather.
+# Required for accurate plate-scale recalibration.
+enable_corrections_ref = true
+
+# Gravitational deflection correction during the DISTORTION FIT step.
+# Leave false here: the distortion fit is not the deflection measurement.
+# Gravitational deflection is measured in the fit-data step.
+enable_gravitational_def = false
+
+# Simultaneous sweep of deflection coefficient and plate scale during the fit.
+# The Station 1 analysis used gravity_sweep = true for eclipse runs.
+# When true, the software fits L and plate scale simultaneously as a
+# consistency check; the plate scale from this sweep is what appears in
+# the distortion output. This does NOT replace the fit-data step.
+gravity_sweep = true
+
+# Station 1 — El Salto, Durango, Mexico
+# 23°50'58.3"N, 105°16'22.1"W, 2400 m elevation
+# Totality began at 18:12 UTC; observation_time is the eclipse image folder time.
+# Weather from weather station: 18.0°C, 23% humidity, 76,610 Pa.
+# The values below are what were used in the actual Station 1 GUI analysis
+# (rounded from the weather station readings).
+observation_time     = "18:10"              # UTC, hh:mm (match eclipse image time)
+observation_lat      = "23 50 58.3 N"       # DMS with compass direction
+observation_long     = "105 16 22.1 W"      # DMS with compass direction
+observation_temp     = 15.0                 # °C (weather station read ~18°C)
+observation_pressure = 760.0                # millibars (weather station read 766.1)
+observation_humidity = 0.25                 # 0.0 to 1.0 (weather station read 0.23)
+observation_height   = 2400.0               # metres above sea level
+observation_wavelength = 0.625              # micrometres (red filter, 625 nm)
+
+
+[display]
+flag_display2 = true

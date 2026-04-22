@@ -1,0 +1,119 @@
+# ============================================================
+# find-stars — Eclipse Field
+# ============================================================
+# Pipeline stage: Tab 1 (stacker_implementation.py)
+# Use this config for images taken during totality, with the
+# Sun (and its corona) near the center of the field. The bright
+# corona must be masked before centroiding. Sensitive stacking
+# mode is recommended to find stars close to the coronal glow.
+#
+# Inputs:  raw FITS images (science, optional darks, optional flats)
+# Outputs: {run_name}_stack.fits   — stacked image
+#          {run_name}_centroids.csv — star centroids in pixel coords
+#
+# Sample data: Station 1, El Salto MX, 2024-04-08, ~18:10–19:21 UTC
+# ============================================================
+
+[run]
+run_name = "station1-eclipse"
+
+
+# ------------------------------------------------------------
+# Input files
+# Provide EITHER input_folder OR input_files, not both.
+# ------------------------------------------------------------
+
+[input]
+input_folder = "/Users/jesse/scratch/eddington/sample-data/eclipse/science"
+input_files  = []
+
+dark_folder = "/Users/jesse/scratch/eddington/sample-data/eclipse/dark"
+dark_files  = []
+
+flat_folder = "/Users/jesse/scratch/eddington/sample-data/eclipse/flat"
+flat_files  = []
+
+
+[output]
+output_dir = "/Users/jesse/scratch/mee-and-claude/tests/output/station1-eclipse"
+
+
+# ------------------------------------------------------------
+# Stacking alignment
+# ------------------------------------------------------------
+
+[stacking]
+m = 30
+n = 30
+k = 12
+pxl_tol = 10
+cutoff = 100
+
+
+# ------------------------------------------------------------
+# Saturated blob removal
+# IMPORTANT: set delete_saturated_blob = true for eclipse images.
+# The solar corona is a large bright region that must be masked
+# before star centroids can be detected reliably.
+# ------------------------------------------------------------
+
+[blob_removal]
+# Must be true for eclipse images.
+delete_saturated_blob = true
+
+# Percentage of maximum pixel value treated as saturated.
+# 100 = only the absolute pixel maximum; lower values grow the masked region.
+blob_saturation_level = 90
+
+# Extra exclusion radius around the detected blob, in pixels.
+# At Station 1 plate scale (~1.85 arcsec/px), 200 px ≈ 6 arcmin.
+blob_radius_extra = 200
+
+# Centroids within this many pixels of the blob exclusion boundary are dropped.
+centroid_gap_blob = 100
+
+
+# ------------------------------------------------------------
+# Centroid detection
+# Sensitive mode is recommended for eclipse images: stars near
+# the bright corona sit on a strongly varying background that
+# the standard method handles poorly.
+# ------------------------------------------------------------
+
+[centroid_detection]
+# Enable Gaussian-subtraction (sensitive) mode during stacking.
+# Recommended true for eclipse images.
+centroid_gaussian_subtract = true
+
+# Apply sensitive mode on the final stacked image as well.
+sensitive_mode_stack = true
+
+# Background subtraction kernel.
+background_subtraction_mode = "annular"
+
+# Detection threshold (sigma). Lower = more sensitive but more false positives.
+# 4.0 was used in the Station 1 analysis; increase if too many spurious detections.
+centroid_gaussian_thresh = 4.0
+
+# Minimum blob area (pixels) for a detection. Rejects single-pixel hits.
+min_area = 2
+
+# Background sigma clip. 0.0 = no clipping; all background pixels are retained.
+sigma_subtract = 0.0
+
+img_edge_distance = 5
+remove_edgy_centroids = true
+sanity_check_centroids = true
+
+# Number of brightest stars to annotate in the diagnostic plot.
+d = 100
+
+
+# ------------------------------------------------------------
+# Output options
+# ------------------------------------------------------------
+
+[output_options]
+flag_display = true
+save_dark_flat = false
+float_fits = false

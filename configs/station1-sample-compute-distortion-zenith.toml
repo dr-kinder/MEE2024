@@ -1,0 +1,148 @@
+# ============================================================
+# compute-distortion — Zenith / Calibration Field (free fit)
+# ============================================================
+# Pipeline stage: Tab 2 (distortion_fitter.py)
+# Use this config for calibration images taken at zenith or
+# away from the Sun. ALL polynomial orders are fitted freely —
+# this is the run that establishes the stable, high-order
+# distortion coefficients of the lens.
+#
+# The output (distortion coefficients) from this run is used as
+# input to station1-sample-compute-distortion-eclipse.toml, where
+# the cubic and higher terms are held fixed.
+#
+# Inputs:  {run_name}_centroids.csv from find-stars
+# Outputs: {run_name}_distortion.toml — full polynomial coefficients
+#
+# Sample data: Station 1, El Salto MX, 2024-04-08
+# ============================================================
+
+[run]
+run_name = "station1-calibration"
+
+
+[input]
+# Path to the centroids file produced by find-stars.
+# In the new pipeline format this is a CSV file; the legacy
+# format uses a .zip archive from the original GUI output.
+input_file = "/Users/jesse/scratch/mee-and-claude/tests/output/station1-calibration/station1-calibration_centroids.csv"
+
+# For the ZENITH run: leave distortion_reference_files blank and
+# set distortion_fixed_coefficients = "None" so that all polynomial
+# orders are fitted freely.
+distortion_reference_files    = ""
+distortion_fixed_coefficients = "None"   # options: None, constant, linear, quadratic, cubic, quartic, quintic, sextic, septic
+
+
+[output]
+output_dir = "/Users/jesse/scratch/mee-and-claude/tests/output/station1-calibration"
+
+
+# ------------------------------------------------------------
+# Star catalog
+# ------------------------------------------------------------
+
+[catalog]
+# Catalog to use for astrometric matching.
+# "gaia" is strongly preferred: μas proper motions, parallaxes,
+# and the best reference positions for corrections.
+catalogue = "gaia"
+
+# Maximum catalog magnitude to include. The Station 1 analysis used 15.0,
+# which captures all stars the ZWO ASI6200MM can centroid in a 20-frame
+# zenith stack. Reduce to 12–13 to speed up catalog queries.
+max_star_mag_dist = 15.0
+
+# Hard safety limit: stars fainter than this are never fetched,
+# regardless of max_star_mag_dist. Protects against slow queries.
+safety_limit_mag = 13.0
+
+# Stars within this many arcseconds of a neighbor are flagged as
+# potential double stars (blended centroids).
+double_star_cutoff = 10.0   # arcseconds
+
+# Maximum magnitude of a neighbor star to trigger the double-star flag.
+double_star_mag = 17.0
+
+
+# ------------------------------------------------------------
+# Polynomial distortion fit
+# ------------------------------------------------------------
+
+[fitting]
+# Polynomial order to fit. Options: "linear", "cubic", "quintic", "septic".
+# The ZWO ASI6200MM full-frame sensor at 1.85 arcsec/px has strong
+# higher-order distortion; "quintic" is required for sub-arcsecond residuals.
+distortionOrder = "quintic"
+
+# Stars with residuals larger than this (arcseconds) are rejected as outliers.
+# 2.0 arcsec was used in the Station 1 analysis; tighten to 1.0 after the
+# first run to see if the fit improves.
+distortion_fit_tol = 2.0   # arcseconds
+
+# Initial rough-match threshold (arcseconds) for the first-pass catalog match.
+# 100 arcsec was needed here because the initial plate-solve pointing was
+# only accurate to ~1 arcmin after stacking. Reduce if your plate solve
+# gives better absolute pointing.
+rough_match_threshhold = 100.0   # arcseconds
+
+# Discard stars flagged as doubles or with missing Gaia proper motion.
+# Recommended false for zenith fields (more stars = better fit);
+# set true if double-star contamination degrades the residuals.
+remove_double_tab2 = false
+
+# Mask stars outside a circular crop (fraction of half-image-width).
+# Useful to exclude heavily vignetted corners. false = use full image.
+crop_circle        = false
+crop_circle_thresh = 1.0   # 1.0 = full image; 0.8 = inner 80% radius
+
+# Polynomial basis. "polynomial" is standard; "legendre" is experimental.
+basis_type = "polynomial"
+
+
+# ------------------------------------------------------------
+# Observation date
+# The catalog lookup uses this date to propagate Gaia positions
+# for proper motion and parallax. Must match the actual observation.
+# ------------------------------------------------------------
+
+[date]
+observation_date = "2024-04-08"   # UTC, YYYY-MM-DD format
+
+# Set guess_date = true to let the software infer the date from
+# the image FITS headers. Mutually exclusive with enable_corrections.
+guess_date   = false
+DEFAULT_DATE = "2020-01-01"   # initial guess if guess_date = true
+
+
+# ------------------------------------------------------------
+# Astrometric corrections
+# Even for the ZENITH run, aberration, parallax, and refraction corrections
+# should be enabled. The corrections are small (< 1 arcsec), but they enter
+# the residuals that the distortion polynomial is trying to minimise.
+# Omitting them biases the distortion coefficients at the sub-arcsecond level.
+# ------------------------------------------------------------
+
+[corrections]
+enable_corrections     = true    # aberration + parallax (Gaia)
+enable_corrections_ref = true    # atmospheric refraction
+enable_gravitational_def = false # gravitational deflection not applicable here
+gravity_sweep          = false
+
+# Station 1 — El Salto, Durango, Mexico
+# 23°50'58.3"N, 105°16'22.1"W, 2400 m elevation
+# Observation time is the zenith calibration session (06:10 UTC, 2024-04-08)
+# Weather values are approximate; the exact values used in the Station 1
+# analysis were: temp=15.0°C, pressure=760.0 mbar, humidity=0.25
+observation_time     = "06:10"              # UTC, hh:mm
+observation_lat      = "23 50 58.3 N"       # DMS with compass direction
+observation_long     = "105 16 22.1 W"      # DMS with compass direction
+observation_temp     = 15.0                 # °C
+observation_pressure = 760.0                # millibars
+observation_humidity = 0.25                 # 0.0 to 1.0
+observation_height   = 2400.0               # metres above sea level
+observation_wavelength = 0.625              # micrometres (red filter)
+
+
+[display]
+flag_display2 = true

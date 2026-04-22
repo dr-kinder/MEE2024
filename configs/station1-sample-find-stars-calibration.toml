@@ -1,0 +1,171 @@
+# ============================================================
+# find-stars — Calibration / Zenith Field
+# ============================================================
+# Pipeline stage: Tab 1 (stacker_implementation.py)
+# Use this config for nighttime or pre-eclipse calibration images
+# taken away from the Sun and Moon. These images are used to
+# characterize the stable, high-order optical distortion of the lens.
+#
+# Inputs:  raw FITS images (science, optional darks, optional flats)
+# Outputs: {run_name}_stack.fits   — stacked image
+#          {run_name}_centroids.csv — star centroids in pixel coords
+#
+# Sample data: Station 1, El Salto MX, 2024-04-08
+# ============================================================
+
+[run]
+# Short identifier used to name output files.
+# Outputs will be named {run_name}_stack.fits, {run_name}_centroids.csv, etc.
+run_name = "station1-calibration"
+
+
+# ------------------------------------------------------------
+# Input files
+# Provide EITHER input_folder OR input_files, not both.
+# input_folder: stack all .FIT/.fits/.tif/.png files found in this directory.
+# input_files:  explicit list of file paths (useful for selecting a subset).
+# The same either/or logic applies to darks and flats.
+# ------------------------------------------------------------
+
+[input]
+input_folder = "/Users/jesse/scratch/eddington/sample-data/calibration/science"
+input_files  = []   # e.g. ["/path/to/img1.FIT", "/path/to/img2.FIT"]
+
+# Dark frames are subtracted pixel-by-pixel to remove thermal noise.
+# Leave both empty to skip dark subtraction.
+dark_folder = "/Users/jesse/scratch/eddington/sample-data/calibration/dark"
+dark_files  = []
+
+# Flat frames correct for vignetting and pixel-to-pixel sensitivity variation.
+# Leave both empty to skip flat correction.
+flat_folder = "/Users/jesse/scratch/eddington/sample-data/calibration/flat"
+flat_files  = []
+
+
+[output]
+# Directory where output files will be written.
+# Must already exist; will not be created automatically.
+output_dir = "/Users/jesse/scratch/mee-and-claude/tests/output/station1-calibration"
+
+
+# ------------------------------------------------------------
+# Stacking alignment
+# These parameters control how individual frames are aligned
+# before co-adding. They are rarely changed from defaults.
+# ------------------------------------------------------------
+
+[stacking]
+# Number of stars used to fit the frame-to-frame shift.
+# More stars give a more robust alignment but are slower.
+m = 30
+
+# Number of stars searched in each frame during alignment matching.
+n = 30
+
+# Number of bright stars used for the initial plate solve.
+k = 12
+
+# Pixel tolerance for matching stars between frames during alignment.
+# Increase if frames have large offsets (e.g., poor tracking).
+pxl_tol = 10
+
+# Penalty saturation distance (pixels) for the alignment cost function.
+# Stars further apart than this contribute a flat penalty; prevents
+# the optimizer from being driven by obvious non-matches.
+cutoff = 100
+
+
+# ------------------------------------------------------------
+# Saturated blob removal
+# Used to mask the solar corona, a bright Moon, or any other
+# large saturated region before finding star centroids.
+# For nighttime calibration fields with no bright objects, leave
+# delete_saturated_blob = false.
+# ------------------------------------------------------------
+
+[blob_removal]
+# Set to true for eclipse and lunar images; false for zenith/calibration.
+delete_saturated_blob = false
+
+# Percentage of the maximum pixel value above which a region is
+# considered saturated. 90 clips the brightest 10% of the dynamic range.
+# (These parameters are inactive when delete_saturated_blob = false, but
+# are kept here so the config is ready to enable blob removal if needed.)
+blob_saturation_level = 90
+
+# Radius of extra exclusion zone around the detected blob, in pixels.
+blob_radius_extra = 200
+
+# Centroids within this many pixels of the blob exclusion zone boundary
+# are discarded.
+centroid_gap_blob = 100
+
+
+# ------------------------------------------------------------
+# Centroid detection
+# The pipeline supports two centroid detection methods:
+#   Standard mode (centroid_gaussian_subtract = false):
+#     Fast; works well for bright, isolated stars in clean fields.
+#     Recommended for zenith/calibration images.
+#   Sensitive mode (centroid_gaussian_subtract = true):
+#     Fits and subtracts a local Gaussian background, then detects
+#     peaks above a sigma threshold. Slower but finds fainter stars
+#     and works near bright backgrounds (e.g., solar corona).
+# ------------------------------------------------------------
+
+[centroid_detection]
+# Use Gaussian-subtraction (sensitive) mode during frame stacking.
+# For calibration images, standard mode is sufficient.
+centroid_gaussian_subtract = false
+
+# Apply sensitive mode on the final stacked result regardless of
+# whether it was used during stacking. Finds dimmer stars.
+sensitive_mode_stack = true
+
+# Background subtraction kernel: "annular" or "Gaussian".
+# "Gaussian" fits and subtracts a Gaussian background model.
+# "annular" uses a ring-shaped kernel. For the calibration (zenith) field
+# with many stars and a clean background, "Gaussian" was used in the
+# Station 1 analysis and produces good results.
+background_subtraction_mode = "Gaussian"
+
+# [Sensitive mode] Detection threshold in units of local background sigma.
+# Lower values find more (fainter) stars but increase false detections.
+centroid_gaussian_thresh = 4.0
+
+# [Sensitive mode] Minimum blob area (pixels) for a detection to be kept.
+min_area = 2
+
+# [Sensitive mode] Background-subtraction sigma clip level.
+# 0.0 means: do not clip background pixels — accept all background values.
+sigma_subtract = 0.0
+
+# Discard centroids within this many pixels of the image edge.
+# Edge pixels are often vignetted or clipped; their centroids are unreliable.
+img_edge_distance = 5
+
+# Remove centroids that are implausibly close to the image boundary.
+remove_edgy_centroids = true
+
+# Run internal sanity checks on detected centroids (recommended).
+sanity_check_centroids = true
+
+# Number of the brightest stars to annotate in the diagnostic display plot.
+d = 100
+
+
+# ------------------------------------------------------------
+# Output options
+# ------------------------------------------------------------
+
+[output_options]
+# Show diagnostic plots during processing (requires a display).
+# Set false for headless/batch runs.
+flag_display = true
+
+# Save the dark-subtracted and flat-corrected frames (debug use).
+save_dark_flat = false
+
+# Write the stacked FITS as 32-bit float instead of 16-bit integer.
+# Float output preserves sub-count precision but doubles file size.
+float_fits = false
