@@ -385,6 +385,27 @@ def inputUI(options):
             window['background_subtraction_mode'].update(value=str(loaded['background_subtraction_mode']))
         if 'blob_saturation_level' in loaded:
             window['blob_saturation_level'].update(value=int(loaded['blob_saturation_level']))
+        # Translate descriptive TOML keys (input_folder/input_files etc.) to GUI widget keys.
+        # Only applied when the GUI-internal key (workDir / -DARK- / -FLAT-) is absent.
+        def _resolve(folder_key, files_key):
+            files = loaded.get(files_key) or []
+            if files:
+                return ';'.join(str(f) for f in files)
+            folder = loaded.get(folder_key)
+            return str(folder) if folder else None
+        if 'workDir' not in loaded:
+            val = _resolve('input_folder', 'input_files')
+            if val is not None:
+                window['-FILE-'].update(val)
+                options['workDir'] = val
+        if '-DARK-' not in loaded:
+            val = _resolve('dark_folder', 'dark_files')
+            if val is not None:
+                window['-DARK-'].update(val)
+        if '-FLAT-' not in loaded:
+            val = _resolve('flat_folder', 'flat_files')
+            if val is not None:
+                window['-FLAT-'].update(val)
 
     def _apply_tab2(loaded):
         str_inputs = {
