@@ -387,17 +387,24 @@ def inputUI(options):
             window['blob_saturation_level'].update(value=int(loaded['blob_saturation_level']))
         # Translate descriptive TOML keys (input_folder/input_files etc.) to GUI widget keys.
         # Only applied when the GUI-internal key (workDir / -DARK- / -FLAT-) is absent.
+        _fits_exts = {'.fit', '.fits', '.fts', '.FIT', '.FITS', '.FTS'}
+        def _expand_folder(folder):
+            p = Path(folder)
+            if not p.is_dir():
+                return str(folder)
+            files = sorted(f for f in p.iterdir() if f.suffix in _fits_exts)
+            return ';'.join(str(f) for f in files) if files else str(folder)
         def _resolve(folder_key, files_key):
             files = loaded.get(files_key) or []
             if files:
                 return ';'.join(str(f) for f in files)
             folder = loaded.get(folder_key)
-            return str(folder) if folder else None
+            return _expand_folder(folder) if folder else None
         if 'workDir' not in loaded:
             val = _resolve('input_folder', 'input_files')
             if val is not None:
                 window['-FILE-'].update(val)
-                options['workDir'] = val
+                options['workDir'] = str(Path(val.split(';')[0]).parent)
         if '-DARK-' not in loaded:
             val = _resolve('dark_folder', 'dark_files')
             if val is not None:
