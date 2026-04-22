@@ -82,6 +82,13 @@ Ordered by priority:
    - Populates all GUI fields from a TOML file (gui-improvements branch).
    - Also added: write output config_tab{1,2,3}.toml to output dir on each run,
      recording the exact settings used (written before processing begins).
+   - Additional GUI improvements (2026-04-22): 14pt font + scrollable tabs +
+     resizable window; auto-populate Tab 2 input from most recent
+     centroid_data*.zip; auto-populate Tab 3 input from most recent
+     distortion_data*.zip; auto-resolve distortion_reference_files to most
+     recent distortion_data*.zip when specified file does not exist.
+   - VALIDATED: complete Station 1 pipeline run using only TOML configs
+     (2026-04-22). All five stages completed without manual field entry.
 
 3. CLI scripts replicating each GUI tab.
    - find-stars.py     (Tab 1 / stacker_implementation.py)
