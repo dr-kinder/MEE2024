@@ -520,8 +520,6 @@ def inputUI(options):
                 sg.Popup(popup_messages['no_folder_error'], keep_on_top=True)
         if event=='OK2':
             files = values['-FILE2-'].split(';')
-            print(values['-FILE2-'])
-            print(files)
             for file in files:
                 if check_file(file):
                     input_okay_flag = True

@@ -19,7 +19,9 @@ import time
 from mee2024.MEE2024util import output_path, _version, setup_logger
 import datetime
 import pandas as pd
-import FreeSimpleGUI as sg
+from tqdm import tqdm
+import logging
+_log = logging.getLogger(__name__)
 from collections import Counter
 from skimage import measure
 import cv2
@@ -127,7 +129,7 @@ def remove_saturated_blob(img, sat_val=65535, radius=100, radius2=150, min_size=
 # two-step implementation (first rough, then more accurate)
 def attempt_align(c1, c2, options, guess = (0,0), framenum=-1):
     if not c1.size or not c2.size:
-        print("ERROR: no star centroids found")
+        _log.warning("no star centroids found for frame %d", framenum)
         raise Exception(f"The stacking procedure failed to match stars between frame 0 and {framenum}! No centroids found! Check that all frames are okay,\nin the same field, \
 and that you have chosen appropriate centroid detection threshholds")
     m = min(min(c1.shape[0], c2.shape[0]), options['m'])
@@ -142,12 +144,12 @@ and that you have chosen appropriate centroid detection threshholds")
         norms = np.minimum(np.linalg.norm(d, axis=2)**1.5, options['cutoff']) # 1.5 power norms of distances (capped?)
         return np.sum(np.min(norms, axis = 0)) / c1.shape[0]
     result = minimize(loss_fxn, guess)
-    print(result)
+    _log.debug("rough align result: %s", result)
 
     #plt.scatter(c1a[:, 1], c1a[:, 0])
     #plt.scatter(c2a[:, 1], c2a[:, 0])
     #plt.show()
-    
+
     def enumerate_matches(b, eps=2):
         d = np.reshape(c1, (c1.shape[0], 1, -1)) - np.swapaxes(np.reshape(c2, (c2.shape[0], 1, -1)), 0, 1) - b
         norms = np.linalg.norm(d, axis=2)
@@ -157,7 +159,7 @@ and that you have chosen appropriate centroid detection threshholds")
         norms[options['n']:, options['n']:] = 99999
         while 1:
             ind = np.unravel_index(np.argmin(norms), norms.shape)
-            print('info', ind, norms[ind])
+            _log.debug("match candidate %s dist=%.3f", ind, norms[ind])
             if norms[ind] > eps:
                 break
             i, j = tuple(ind)
@@ -169,7 +171,7 @@ and that you have chosen appropriate centroid detection threshholds")
         return matches1, matches2
     matches1, matches2 = enumerate_matches(result.x, eps=options['pxl_tol'])
     if len(matches1) == 0:
-        print("ERROR: no matched stars between images ... problably this means failure")
+        _log.warning("no matched stars between images for frame %d", framenum)
         raise Exception(f"The stacking procedure failed to match stars between frame 0 and {framenum}! Check that all frames are okay,\nin the same field, \
 and that you have chosen appropriate centroid detection threshholds")
     vec1 = np.array([c1[i, :] for i in matches1 if i < options['n']])
@@ -179,53 +181,39 @@ and that you have chosen appropriate centroid detection threshholds")
         return np.linalg.norm(vec1 - vec2 - b) ** 2
 
     result2 = minimize(loss_fxn2, guess)
-    print(result2)
-    print(vec1.shape)
+    _log.debug("fine align result: %s  nstars=%d", result2, vec1.shape[0])
     return result.x, matches1, matches2, result2.x, (result2.fun/vec1.shape[0])**0.5
 
 def do_loop_with_progress_bar(items, fxn, message='Progress', **kwargs):
-    layout = [[sg.Text(message)], [sg.ProgressBar(max_value=len(items), orientation='h', size=(20, 20), key='progress')]]
-    window = sg.Window('Progress Meter', layout, finalize=True)
-    progress_bar = window['progress']
-    ret = []
-    progress_bar.update_bar(0)
-    for i in range(len(items)): 
-        ret.append(fxn(items[i], **kwargs))
-        progress_bar.update_bar(i+1)
-    window.close()
-    return ret
+    return [fxn(item, **kwargs) for item in tqdm(items, desc=message)]
 
 def multiprocessing_fxn(q, fxn, item, i, **kwargs):
     #print(item, kwargs)
     q.put((i, fxn(item, **kwargs)))
 
 def do_loop_with_progress_bar_multiprocessing(items, fxn, message='Progress', nthreads=4, **kwargs):
-    layout = [[sg.Text(message)], [sg.ProgressBar(max_value=len(items), orientation='h', size=(20, 20), key='progress')]]
-    window = sg.Window('Progress Meter', layout, finalize=True)
-    progress_bar = window['progress']
     ret = [None for _ in items]
-    progress_bar.update_bar(0)
     q = multiprocessing.Queue()
     procs = []
     for i, item in enumerate(items[:nthreads]):
-        p = multiprocessing.Process(target=multiprocessing_fxn, args = (q, fxn, item, i), kwargs=kwargs)
+        p = multiprocessing.Process(target=multiprocessing_fxn, args=(q, fxn, item, i), kwargs=kwargs)
         p.start()
         procs.append(p)
     n_ret = 0
     i = nthreads
-    while n_ret < len(items):
-        x = q.get()
-        ret[x[0]] = x[1] # this way order of inputs is preserved
-        n_ret += 1
-        progress_bar.update_bar(n_ret)
-        if i < len(items):
-            p = multiprocessing.Process(target=multiprocessing_fxn, args = (q, fxn, items[i], i), kwargs=kwargs)
-            p.start()
-            procs.append(p)
-            i += 1
+    with tqdm(total=len(items), desc=message) as pbar:
+        while n_ret < len(items):
+            x = q.get()
+            ret[x[0]] = x[1]
+            n_ret += 1
+            pbar.update(1)
+            if i < len(items):
+                p = multiprocessing.Process(target=multiprocessing_fxn, args=(q, fxn, items[i], i), kwargs=kwargs)
+                p.start()
+                procs.append(p)
+                i += 1
     for p in procs:
         p.join()
-    window.close()
     return ret
 
 def filter_bad_centroids(centroids_data, mask2, shape):
@@ -275,7 +263,7 @@ def filter_edgy_centroids(centroids_data, img, f=3, d=16, thresh=2, edge_thresho
         uq = np.percentile(joined, 60)
 
         if uq-lq==0 or (median_max - (lq+uq)/2) / (uq-lq) > edge_threshold:
-            print('deleting edgy centroid: ', x0, x1)
+            _log.debug("deleting edgy centroid: %d %d", x0, x1)
         else:
             ret.append(data)
         
@@ -286,7 +274,7 @@ def filter_edgy_centroids(centroids_data, img, f=3, d=16, thresh=2, edge_thresho
         ratio_y = (dvals[0] - dvals[3]) / (dvals[0] - dvals[4])
         #print('ratio_xy', ratio_x, ratio_y) 
         if ratio_x < 0 or ratio_y < 0 or np.abs(np.log(ratio_x)) > thresh or np.abs(np.log(ratio_y)) > thresh:
-            print('deleting edgy centroid: ', x0, x1)
+            _log.debug("deleting edgy centroid: %d %d", x0, x1)
         else:
             ret.append(data)
         '''
@@ -381,7 +369,7 @@ def get_centroids_blur(img_mask2, ksize=17, r_max=10, options={}, gauss=False, d
     passed[expand_mask(mask2, 8)] = 0 # TODO: reflect on this quick fix to edge problems
     #plt.imshow(data, cmap='gray_r', vmin=4, vmax=5)
     #plt.show()
-    print("--- %s seconds for centroid finding (prepare)---" % (time.time() - t_start))
+    _log.debug("centroid finding (prepare): %.2fs", time.time() - t_start)
     centroid_labels = measure.label(passed, connectivity=1)
     centroid_labels_exp = expand_labels(centroid_labels) # expand by one more ring of pixels
     properties = measure.regionprops(centroid_labels, data)
@@ -390,7 +378,7 @@ def get_centroids_blur(img_mask2, ksize=17, r_max=10, options={}, gauss=False, d
         warnings.filterwarnings(action='ignore', message='invalid value encountered in scalar divide')
         properties_exp = measure.regionprops(centroid_labels_exp, data)
 
-    print("--- %s seconds for centroid finding (labelling)---" % (time.time() - t_start))
+    _log.debug("centroid finding (labelling): %.2fs", time.time() - t_start)
 
     
     areas = [region.area for region in properties]
@@ -447,7 +435,7 @@ def get_centroids_blur(img_mask2, ksize=17, r_max=10, options={}, gauss=False, d
     
 
     sorted_c = sorted([(f, a, c) for f, c, a in zip(fluxes, centroids, areas) if a >= options['min_area'] and not np.isnan(c[0])], reverse=True)
-    print(f"n centroids initial {len(sorted_c)}")
+    _log.debug("n centroids initial: %d", len(sorted_c))
     # sanity check: mean(3x3 around centroid) > mean(5x5 around centroid) > mean(7x7) > mean(9x9) around centroid in raw img
     # this should help heal with fake centroids due to artifacts like dead pixels
 
@@ -463,10 +451,9 @@ def get_centroids_blur(img_mask2, ksize=17, r_max=10, options={}, gauss=False, d
             warnings.filterwarnings(action='ignore', message='Mean of empty slice') # RuntimeWarning: invalid value encountered in scalar divide
             warnings.filterwarnings(action='ignore', message='invalid value encountered in scalar divide')
             sorted_c = [cc for cc in sorted_c if sanity_check(cc[2])]
-            print(f"n centroids sanity-filtered {len(sorted_c)}")
+            _log.debug("n centroids sanity-filtered: %d", len(sorted_c))
     #sorted_c = [(f, c) for f,c in zip(fluxes, centroids)], reverse=True)
-    print("--- %s seconds for centroid finding (all)---" % (time.time() - t_start))
-    print('found:', sorted_c)
+    _log.debug("centroid finding (all): %.2fs  found: %d", time.time() - t_start, len(sorted_c))
     return sorted_c
 
 def show_scanlines(src_img, fig, ax):
@@ -534,7 +521,7 @@ def do_stack(files, darkfiles, flatfiles, options):
     data_dir = Path(output_dir) / 'data'
     os.mkdir(output_dir)
     os.mkdir(data_dir)
-    print(f'logpath {logpath}')
+    _log.info("logpath %s", logpath)
     logger = setup_logger('logger'+starttime, logpath)
     logger.info('start time: ' + str(datetime.datetime.now()) + '\n')
     logger.info('using version:'+_version())
@@ -542,11 +529,6 @@ def do_stack(files, darkfiles, flatfiles, options):
     logger.info('stacking files:'+str(files))
     logger.info('using darks:'+str(darkfiles))
     logger.info('using flats:'+str(flatfiles))
-    print('using version:'+_version())
-    print('using options:'+str(options))
-    print('stacking files:'+str(files))
-    print('using darks:'+str(darkfiles))
-    print('using flats:'+str(flatfiles))
 
     
 
@@ -555,7 +537,6 @@ def do_stack(files, darkfiles, flatfiles, options):
     dark = np.mean(np.array(open_images(darkfiles)), axis=0) if darkfiles else np.zeros(imgs_0.shape, dtype=imgs_0.dtype)
     flat = np.mean(np.array(open_images(flatfiles)), axis=0) if flatfiles else np.ones(imgs_0.shape, dtype=float)
 
-    print('image size:'+str(imgs_0.shape))
     logger.info('image size:'+str(imgs_0.shape))
     
     if options['save_dark_flat']:
@@ -566,7 +547,7 @@ def do_stack(files, darkfiles, flatfiles, options):
     t_start_c = time.time()
     #cProfile.runctx("do_loop_with_progress_bar(files, open_img_and_find_centroids, message='Finding all centroids...', dark = dark, flat=flat, options=options)", globals(), locals(), sort='cumtime')
     centroids_data = do_loop_with_progress_bar(files, open_img_and_find_centroids, message='Finding all centroids...', dark = dark, flat=flat, options=options)
-    print("--- %s seconds for centroid finding---" % (time.time() - t_start_c))
+    logger.info("centroid finding: %.2fs", time.time() - t_start_c)
     centroids = [np.array([x[2] for x in y]) for y in centroids_data]
     
     # simple stacking: use the first image as the "key" and fit all others to it
@@ -577,10 +558,10 @@ def do_stack(files, darkfiles, flatfiles, options):
     used_stars_stacking = Counter()
     for i in range(1, len(files)):
         shift, matches1, matches2, shift2, fun2 = attempt_align(centroids[0], centroids[i], options, guess=prev, framenum=i)
-        print(shift, shift2, fun2)
+        _log.debug("frame %d  shift=%s  rms=%.4f", i, shift2, fun2)
         shifts.append(shift2)
         if shift2 is None:
-            print(f'NOTE: failure to find centroid match on frame # {i}')
+            _log.warning("failed to match frame %d", i)
             rms_errors.append(None)
             deltas.append(None)
             continue
@@ -588,9 +569,17 @@ def do_stack(files, darkfiles, flatfiles, options):
         rms_errors.append(fun2)
         deltas.append(np.array([centroids[0][j] - centroids[i][matches1[j]] for j in matches1 if j < options['n']]))
         used_stars_stacking.update(matches1.keys())
-        print(matches1)
-    print(rms_errors)
-    print(shifts)
+    logger.info("frame shifts: %s", shifts)
+    logger.info("frame rms errors: %s", rms_errors)
+    # per-frame stacking metadata
+    _frame_log = [{'filename': Path(files[0]).name, 'shift_x': 0.0, 'shift_y': 0.0, 'rms': float('nan')}]
+    for _i in range(1, len(files)):
+        _s, _r = shifts[_i], rms_errors[_i - 1]
+        _frame_log.append({'filename': Path(files[_i]).name,
+                           'shift_x': _s[0] if _s is not None else float('nan'),
+                           'shift_y': _s[1] if _s is not None else float('nan'),
+                           'rms':     _r     if _r is not None else float('nan')})
+    pd.DataFrame(_frame_log).to_csv(data_dir / 'STACKING_LOG.csv', index=False)
     # show stars used in stacking
     used_centroids = np.array([centroids[0][s] for s in used_stars_stacking]).reshape((-1, 2))
     plt.clf()
@@ -603,47 +592,40 @@ def do_stack(files, darkfiles, flatfiles, options):
     plt.grid()
     for k, v in used_stars_stacking.items():
         plt.gca().annotate(str(v), tuple(reversed(centroids[0][k])))
-    plt.savefig(output_dir / ('USEDSTARS'+starttime+'.png'), dpi=600)
     if options['flag_display']:
-        plt.show()    
-
-    
-    # show residual 2D errors
-    plt.clf()
-    for i in range(1, len(files)):
-        if shifts[i-1] is None:
-            continue
-        lbl = '$\\Delta_{0' + str(i) + ',rms} = ' + format(rms_errors[i-1], '.3f') + '$'
-        plt.scatter(deltas[i-1][:, 1], deltas[i-1][:, 0], label = lbl)
-    plt.gca().set_aspect('equal')
-    if len(files) < 30:
-        plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
-    plt.title('2D residuals between centroids')
-    plt.grid()
-    plt.savefig(output_dir / ('TWOD_RESIDUALS'+starttime+'.png'), dpi=600)
-    if options['flag_display']:
-        plt.tight_layout()
-        plt.show()
-    #TODO: can add linear correlation of Dx, Dy to {px, py}. If it is non-zero it may indicate a rotation
-    plt.clf()
-    for i in range(len(files)):
-        if shifts[i] is None:
-            continue
-        #print(centroids, shifts)
-        plt.scatter(centroids[i][:, 1]+shifts[i][1], centroids[i][:, 0]+shifts[i][0], label = str(i))
-    plt.gca().set_aspect('equal')
-    if len(files) < 30:
-        plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
-    plt.title('Centroids found on each image')
-    plt.xlim((0, imgs_0.shape[1]))
-    plt.ylim((0, imgs_0.shape[0]))
-    plt.gca().invert_yaxis()
-    plt.grid()
-    plt.savefig(output_dir / ('CentroidsALL'+starttime+'.png'), bbox_inches="tight", dpi=600)
-    if options['flag_display']:
-        #plt.tight_layout()
         plt.show()
     plt.close()
+
+    # show residual 2D errors
+    if options['flag_display']:
+        plt.clf()
+        for i in range(1, len(files)):
+            if shifts[i-1] is None:
+                continue
+            lbl = '$\\Delta_{0' + str(i) + ',rms} = ' + format(rms_errors[i-1], '.3f') + '$'
+            plt.scatter(deltas[i-1][:, 1], deltas[i-1][:, 0], label = lbl)
+        plt.gca().set_aspect('equal')
+        if len(files) < 30:
+            plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
+        plt.title('2D residuals between centroids')
+        plt.grid()
+        plt.tight_layout()
+        plt.show()
+        plt.clf()
+        for i in range(len(files)):
+            if shifts[i] is None:
+                continue
+            plt.scatter(centroids[i][:, 1]+shifts[i][1], centroids[i][:, 0]+shifts[i][0], label = str(i))
+        plt.gca().set_aspect('equal')
+        if len(files) < 30:
+            plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
+        plt.title('Centroids found on each image')
+        plt.xlim((0, imgs_0.shape[1]))
+        plt.ylim((0, imgs_0.shape[0]))
+        plt.gca().invert_yaxis()
+        plt.grid()
+        plt.show()
+        plt.close()
     # now do actual stacking
     #shifted_images = [reg_imgs[0]] + [np.roll(img, shift.astype(int), axis = (0, 1)) for img, shift in zip(reg_imgs[1:], shifts) if not shift is None]
     #stacked = np.mean(np.array(shifted_images), axis = 0)
@@ -681,8 +663,7 @@ def do_stack(files, darkfiles, flatfiles, options):
     flag_found_IDs = False
     df_identification = None
     solution = platesolve_triangle.platesolve(centroids_stacked, stacked.shape, options = options, output_dir = output_dir)
-    print(solution)
-    logger.info(str(solution))
+    logger.info("plate solution: %s", solution)
     if not solution['ra'] is None:
         df_identification = pd.DataFrame({'px': np.array(solution['matched_centroids'])[:, 1],
                            'py': np.array(solution['matched_centroids'])[:, 0],
@@ -694,8 +675,8 @@ def do_stack(files, darkfiles, flatfiles, options):
         df_identification.to_csv(data_dir / ('STACKED_CENTROIDS_MATCHED_ID'+'.csv'))
         flag_found_IDs = True
     else:
-        logger.error("ERROR: platesolve failed to identify location")
-        print("ERROR: platesolve failed to identify location")
+        _log.warning("platesolve failed to identify location")
+        logger.error("platesolve failed to identify location")
     
 
     plt.close()
@@ -711,7 +692,6 @@ def do_stack(files, darkfiles, flatfiles, options):
             if ind >= options["d"]:
                 break
             plt.gca().annotate((str(int(row['ID']) if isinstance(row['ID'], float) else row['ID']) if 'ID' in row else '') + f'\nMag={row["magV"]:.1f}', (row['px'], row['py']), color='r')
-    plt.savefig(output_dir / ('CentroidsStackGood'+starttime+'.png'), bbox_inches="tight", dpi=600)
     if options['flag_display']:
         show_scanlines(stacked, fig, ax)
         #plt.legend()
@@ -747,7 +727,7 @@ def do_stack(files, darkfiles, flatfiles, options):
     with open(data_dir / 'results.txt', 'w', encoding="utf-8") as fp:
             json.dump(results_dict, fp, sort_keys=False, indent=4)
     
-    print('making archive', output_dir, Path(output_dir).parent)                                           
+    logger.info('making archive')
     shutil.make_archive(data_dir,
                     'zip',
                     Path(data_dir))
@@ -756,4 +736,4 @@ def do_stack(files, darkfiles, flatfiles, options):
     shutil.move(zipfilepath, Path(output_dir).parent / f'centroid_data{starttime}.zip')
     
     logger.info('end time: ' + str(datetime.datetime.now()) + '\n')
-    print('Done!')
+    _log.info("stacking complete: %s", output_dir)

@@ -90,10 +90,30 @@ Ordered by priority:
    - VALIDATED: complete Station 1 pipeline run using only TOML configs
      (2026-04-22). All five stages completed without manual field entry.
 
-3. CLI scripts replicating each GUI tab.
-   - find-stars.py     (Tab 1 / stacker_implementation.py)
-   - compute-distortion.py  (Tab 2 / distortion_fitter.py)
-   - fit-data.py       (Tab 3 / eclipse_analysis.py)
+3. [DONE] Python API replacing CLI scripts.
+   - Decided: Python API functions are strictly better than CLI scripts for
+     composable, notebook-friendly, batch-capable pipeline work.
+   - mee2024/api.py: find_stars(config), compute_distortion(config), fit_data(config)
+   - Each loads a TOML config, merges with defaults, and calls the underlying
+     processing module directly.  No FreeSimpleGUI dependency.
+   - Prerequisite work (all on main branch, 2026-04-29):
+       Phase 1: complete data outputs (STACKING_LOG.csv, parallax column,
+                ECLIPSE_DEFLECTIONS_DATA.csv) so all plots reconstructible from CSV
+       Phase 2: decouple stacker_implementation from FreeSimpleGUI; replace
+                GUI progress bars with tqdm
+       Phase 3: route all print() calls through Python logging; remove plt.savefig()
+                calls; guard all plt.show() calls; applied across all processing
+                modules (stacker, distortion_fitter, eclipse_analysis, refraction_
+                correction, distortion_polynomial, gravity_sweep, platesolve_triangle,
+                platesolve_new, gaia_search, StarData, MEE2024util, database_cache)
+       Phase 4: api.py + load_config_toml; stable inter-stage symlinks
+                ({run_name}_centroids.zip, {run_name}_distortion.zip); mee2024
+                INFO logging to stderr; Gaia retry (5x, 10s); database_cache
+                headless fix (synchronous load if prepare_triangles not called)
+   - Phase 5 (GUI as wrapper calling API functions) deferred — GUI still works,
+     Phase 5 cleanup can happen independently.
+   - VALIDATED: complete Station 1 simple pipeline run from single Python script
+     (2026-04-29). Output matches previous GUI run bit-for-bit.
 
 4. Implement left/right calibration interpolation (Standard Pipeline step 7).
    - This is the critical new piece that makes the Standard Pipeline possible.

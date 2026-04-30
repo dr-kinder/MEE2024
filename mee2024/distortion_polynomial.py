@@ -16,6 +16,8 @@ import json
 from collections import defaultdict
 import zipfile
 import statsmodels.api as sm
+import logging
+_log = logging.getLogger(__name__)
 
 mapping = {'constant':0, 'linear':1, 'quadratic':2, 'cubic':3, 'quartic': 4, 'quintic':5, 'sextic': 6, 'septic':7}
 
@@ -111,10 +113,10 @@ def _date_guess(date_guess, q, plate, stardata, img_shape, options):
     plate_corrected = plate + np.array([reg_y.predict(basis_x), reg_x.predict(basis_y)]).T / m
     #print(reg_x.coef_, reg_x.intercept_)
     #print(reg_y.coef_, reg_y.intercept_)
-    print('dt guess x/y:', reg_x.coef_[-1], reg_y.coef_[-1])
+    _log.debug("dt guess x/y: %.6f %.6f", reg_x.coef_[-1], reg_y.coef_[-1])
     t0=datetime.datetime.fromisoformat(date_guess)
     t_guess = (t0 + datetime.timedelta(days=-int((reg_x.coef_[-1]+ reg_y.coef_[-1])*365.25/2))).date().isoformat()
-    print('I guess image was taken on date:', date_guess, t_guess, int((reg_x.coef_[-1]+ reg_y.coef_[-1])*365.25/2))
+    _log.info("date guess: %s → %s", date_guess, t_guess)
     pmotion_correction = pm_pixel * (date_string_to_float(t_guess) - date_string_to_float(options['observation_date']))
     '''
     # show plot of rms vs t
@@ -151,10 +153,9 @@ def _date_guess(date_guess, q, plate, stardata, img_shape, options):
 
     min_result = scipy.optimize.minimize_scalar(rms_func, bounds = (t0-50, t0+50), method='bounded')
 
-    print('min_result', min_result)
-
+    _log.debug("date optimization result: %s", min_result)
     min_date = date_from_float(min_result.x)
-    print('min_date', min_date)
+    _log.info("date guess result: %s", min_date)
     return min_date
 
 '''
@@ -180,8 +181,7 @@ def _cubic_helper(q, plate, target, w, m, fix_coeff_x, fix_coeff_y, options, use
 
     n_free = (order_free+2) * (order_free+1) // 2 - 1
     n_total = (order_total+2) * (order_total+1) // 2 - 1
-    print(n_free, n_total)
-    print(basis.shape)
+    _log.debug("n_free=%d n_total=%d  basis shape=%s", n_free, n_total, basis.shape)
     basis_free = basis[:, :n_free]
     basis_fixed = basis[:, n_free:]
     errors_fixed = np.copy(errors)
@@ -224,7 +224,7 @@ def apply_corrections(q, plate, coeff_x, coeff_y, img_shape, options):
     w = (max(img_shape)/2) # 1 # for astrometrica convention
     m = 1 #result.x[0] # for astrometrica convention
     basis = get_basis(plate[:, 0], plate[:, 1], w, m, options)
-    print(basis.shape)
+    _log.debug("apply_corrections basis shape=%s", basis.shape)
     corr_x = np.einsum('ji,i->j', basis, coeff_x[1:]) # 1: to remove constant (which should be near-zero)
     corr_y = np.einsum('ji,i->j', basis, coeff_y[1:])
     return plate + np.c_[corr_y, corr_x]
@@ -317,10 +317,8 @@ def do_cubic_fit(plate, stardata, initial_guess, img_shape, options, weights=1):
 
     #print('residuals_x\n', reg_x.predict(basis) / m - errors[:, 1])
     #print('residuals_y\n', reg_y.predict(basis) / m - errors[:, 0])
+    _log.debug("fit params x=%s  y=%s", reg_x.params, reg_y.params)
     if not ('no_plot' in options and options['no_plot']):
-        print(reg_x.params)
-        print(reg_y.params)
-
         _do_3D_plot(plate, errors, reg_x, reg_y, img_shape, w, m, options)
  
     return q_corrected, plate_corrected, coeff_x, coeff_y, platescale_stdrelerror
@@ -414,15 +412,15 @@ def _open_distortion_files(options):
         raise Exception("input distortion files are not same order: " + str(orders))
     #show_coef_boxplot(loaded)
     coeff_x, coeff_y = dict(coeff_x), dict(coeff_y)
-    print(coeff_x)
-    print(coeff_y)
+    _log.debug("coeff_x=%s", coeff_x)
+    _log.debug("coeff_y=%s", coeff_y)
     if platescale_uncertainties:
         combined_platescale_uncertainty = np.linalg.norm(platescale_uncertainties) / len(platescale_uncertainties)
     elif len(platescales) >= 3:
-        print("WARNING: no platescale uncertainty found in files, using variance of observations")
+        _log.warning("no platescale uncertainty found in files, using variance of observations")
         combined_platescale_uncertainty = np.std(platescales) * (len(platescales) / (len(platescales) - 1))**0.5
     else:
-        print("WARNING: no platescale uncertainty could be made")
+        _log.warning("no platescale uncertainty could be made")
         combined_platescale_uncertainty = -1
     return coeff_x, coeff_y, np.mean(platescales), combined_platescale_uncertainty
     

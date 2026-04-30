@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 import erfa
 import copy
 from mee2024 import transforms
+import logging
+_log = logging.getLogger(__name__)
 
 
 
@@ -69,14 +71,14 @@ class AstroCorrect:
             aa = AltAz(location=observing_location, obstime=observing_time)
         coord = stardata.c#SkyCoord(stardata.get_ra() * u.rad, stardata.get_dec() * u.rad, distance = Distance(parallax = parallax * u.mas)) # u.mas: milli-arcsec
         local = coord.transform_to(aa)
-        print('sky mean position alt/az:', np.mean(local.alt.degree), np.mean(local.az.degree))
+        _log.debug("sky mean position alt/az: %.4f %.4f", np.mean(local.alt.degree), np.mean(local.az.degree))
         if np.mean(local.alt.degree) < 5:
-            print('WARNING: your implied altitude is very near or below the horizon! Are you sure your input data is correct?')
+            _log.warning("implied altitude is very near or below the horizon — check input data")
         local_v = as_unit_vector(local)
         rot = _find_rotation_matrix(local_v, icrs_v)
         corrected = (rot.T @ local_v.T).T
         delta = corrected - icrs_v
-        print('rms diff of corrections (arcsec)', np.degrees(np.linalg.norm(delta)/delta.shape[0])*3600)
+        _log.debug("rms diff of corrections: %.6f arcsec", np.degrees(np.linalg.norm(delta)/delta.shape[0])*3600)
         ret = copy.copy(stardata) # note this is shallow copy
         
         app_ra = np.arctan2(corrected[:, 1], corrected[:, 0]) # RA

@@ -10,6 +10,8 @@ from mee2024 import refraction_correction
 from mee2024 import distortion_polynomial
 import matplotlib.pyplot as plt
 import scipy
+import logging
+_log = logging.getLogger(__name__)
 
 
 
@@ -42,7 +44,7 @@ def gravity_sweep(stardata0, plate2, initial_guess, image_size, mask_select, mas
         Ls.append(g)
 
     result1 = scipy.optimize.minimize(error_func, 0, method = 'Nelder-Mead')
-    print(result1)
+    _log.debug("gravity sweep optimizer result: %s", result1)
         
     plt.plot(Ls, rmses)
     plt.xlabel('L (arcsec)')
@@ -52,7 +54,6 @@ def gravity_sweep(stardata0, plate2, initial_guess, image_size, mask_select, mas
     string = f"deflection constant = {result1.x[0]:.5f}\ndifference vs. accepted value: {100*(result1.x[0]-1.751)/1.751:.3f}%\n\ndeflected star position rms = {result1.fun:.3f} arcsec\nrms / sqrt(nstars) = {naive_error:.5f} arcsec\nnaive uncertainty estimate = {100*naive_error/1.751:.1f}%\n"
 
     plt.annotate(string, xy = (result1.x[0], result1.fun), xytext=(result1.x[0]-0.3, result1.fun+0.02), fontsize=14, arrowprops=dict(facecolor='black', shrink=0.05))
-    plt.savefig(output_path(f'ECLIPSE_L_SWEEP{starttime}__{basename}.png', options), dpi=400)
     if options['flag_display2']:
         plt.show()
 

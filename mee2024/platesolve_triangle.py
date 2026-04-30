@@ -28,6 +28,8 @@ from mee2024 import database_cache
 from mee2024.MEE2024util import resource_path, get_bbox, get_triangle_db_path
 from sklearn.neighbors import NearestNeighbors
 import math
+import logging
+_log = logging.getLogger(__name__)
 
 '''
 PARAMETERS (TODO: make controllable by options)
@@ -195,7 +197,7 @@ def match_triangles_inner(centroids, image_shape, options, kd_tree, anchors, pat
     #vectors = np.c_[df['px'], df['py']] - np.array([meta_data['img_shape'][1], meta_data['img_shape'][0]]) / 2
     #plt.scatter(vectors[:, 0], vectors[:, 1])
     #plt.show()
-    print('mean:', np.mean(vectors, axis=0))
+    _log.debug("centroid mean: %s", np.mean(vectors, axis=0))
     #matches = [defaultdict(list) for _ in range(f)]
     match_cand = [] # index of triangle matches
     match_data = [] # [r, phi] the longer side and polar angle of the matched triangles
@@ -243,23 +245,22 @@ def match_triangles_inner(centroids, image_shape, options, kd_tree, anchors, pat
     match_cand = np.array(match_cand)
     match_data = np.array(match_data)
     match_vect = np.array(match_vect)
-    print(f" Real time prepare: {t2[0] - t1[0]:.2f} seconds")
+    _log.debug("prepare: %.2fs", t2[0] - t1[0])
     #find_matching_triangles(matches, triangles, pattern_data, anchors, given_scale)
     t3 = time.perf_counter(), time.process_time()
-    print(f" Real time match: {t3[0] - t2[0]:.2f} seconds")
+    _log.debug("match: %.2fs", t3[0] - t2[0])
     #cProfile.runctx('compute_platescale(triangles, pattern_data, anchors, match_cand, match_data, match_vect)', globals(), locals())
     scale, roll, center_vect, matrix, target = compute_platescale(triangles, pattern_data, anchors, match_cand, match_data, match_vect)
     t4 = time.perf_counter(), time.process_time()
-    print(f" Real time platescale compute: {t4[0] - t3[0]:.2f} seconds")
+    _log.debug("platescale compute: %.2fs", t4[0] - t3[0])
     return scale, roll, center_vect, match_info, triangle_info, vectors, target
 
 
 def match_triangles(centroids, image_shape, options):
     t0 = time.perf_counter(), time.process_time()
     kd_tree, anchors, pattern_ind, pattern_data, triangles = load()
-    print('loaded database')
     t1 = time.perf_counter(), time.process_time()
-    print(f" Real time loading: {t1[0] - t0[0]:.2f} seconds")
+    _log.debug("database loaded: %.2fs", t1[0] - t0[0])
     #cProfile.runctx("match_triangles_inner(centroids, image_shape, options, kd_tree, anchors, pattern_ind, pattern_data, triangles)", globals(), locals())
     return match_triangles_inner(centroids, image_shape, options, kd_tree, anchors, pattern_ind, pattern_data, triangles)
 
@@ -291,7 +292,7 @@ def platesolve(centroids, image_shape, options={'flag_display':False, 'rough_mat
     result['mirror'] = False
     if result['success'] or not try_mirror_also:
         return result
-    print('platesolve failed ... trying mirror image of field')
+    _log.info("platesolve failed, trying mirror image of field")
     centroids = np.copy(centroids)
     centroids[:, [0, 1]] = centroids[:, [1, 0]]
     image_shape = (image_shape[1], image_shape[0])
@@ -307,7 +308,7 @@ def _platesolve_helper(centroids, image_size, options, output_dir=None):
     t00 = time.perf_counter(), time.process_time()
     
     scale, roll, center_vect, match_info, triangle_info, vectors, target_vectors = match_triangles(centroids, image_size, options)
-    print(f'initial triangle matches: {scale.shape[0]}')
+    _log.debug("initial triangle matches: %d", scale.shape[0])
     n_obs = centroids.shape[0]
     all_star_plate = centroids - np.array([image_size[0]/2, image_size[1]/2])
     t2 = time.perf_counter(), time.process_time()
@@ -343,7 +344,7 @@ def _platesolve_helper(centroids, image_size, options, output_dir=None):
 
                 el = non_redundant[0]
                 radec = transforms.to_polar(center_vect[el])
-                print('triangle match:', len(non_redundant), [match_info[_] for _ in non_redundant])
+                _log.debug("triangle match: %d triangles", len(non_redundant))
                 #print(counts[i], radec, scale[el], roll[el], match_info[el])
                 #print(matchset)
                 if options['flag_debug']:
@@ -380,26 +381,23 @@ def _platesolve_helper(centroids, image_size, options, output_dir=None):
                 
                 if stardata.shape[0] >= thresh:
                     n_matches += 1
-                    print(f"MATCH ACCEPTED (nstars matched = {stardata.shape[0]}, thresh = {thresh})")
+                    _log.info("match accepted: %d stars  ra=%.4f dec=%.4f roll=%.4f", stardata.shape[0], acc_ra, acc_dec, acc_roll)
                     rms = 3600*np.degrees(np.linalg.norm(catvects - (rotation_matrix.T @ ivects.T).T) / catvects.shape[0])
-                    print('accurate ra dec roll', acc_ra, acc_dec, acc_roll, 'rough rms=', rms, 'arcsec')
                     if stardata.shape[0] > best:
                         best = stardata.shape[0]
                         best_non_redundant = non_redundant
                         best_result = {'success':True, 'x': np.radians(platescale), 'platescale/arcsec':3600*np.degrees(scale[el]), 'ra':acc_ra, 'dec':acc_dec, 'roll':acc_roll, 'matched_centroids':plate2+np.array([image_size[0]/2, image_size[1]/2]), 'matched_stars':stardata}
                 else:
-                    print(f"note: candidate match rejected (nstars matched = {stardata.shape[0]}, thresh = {thresh})")         
-    print(f'npairs = {len(candidate_pairs)}')
+                    _log.debug("candidate rejected: %d stars < thresh %d", stardata.shape[0], thresh)
     t4 = time.perf_counter(), time.process_time()
-    print(f" Real star matching: {t4[0] - t33[0]:.2f} {t33[0] - t3[0]:.2f} {t3[0] - t2[0]:.2f} seconds")
     tff = time.perf_counter(), time.process_time()
-    print(f" TOTAL TIME: {tff[0] - t00[0]:.2f} seconds")
+    _log.debug("platesolve timing: matching=%.2fs  total=%.2fs  npairs=%d", t4[0] - t33[0], tff[0] - t00[0], len(candidate_pairs))
     if n_matches > 1:
-        print(f"WARNING: multiple ({n_matches}) platesolves were successful, returning best one")
+        _log.warning("multiple (%d) platesolves succeeded, returning best", n_matches)
     elif n_matches == 0:
-        print("Platesolve FAILED")
+        _log.warning("platesolve FAILED")
     elif n_matches == 1:
-        print("Platescale SUCCESS")
+        _log.info("platesolve SUCCESS")
     if (options['flag_display2'] or not output_dir is None) and n_matches >= 1:
         # show platesolve
         plt.scatter(centroids[:, 1], centroids[:, 0])

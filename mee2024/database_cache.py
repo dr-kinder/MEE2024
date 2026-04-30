@@ -7,6 +7,9 @@ from mee2024 import platesolve_new
 from mee2024.MEE2024util import get_triangle_db_path
 from multiprocessing import Process, Queue
 from multiprocessing import Manager
+import logging
+_log = logging.getLogger(__name__)
+
 class _cache:
 
     database_cache = {}
@@ -27,18 +30,18 @@ class TriangleData:
         self.kd_tree = KDTree(self.triangles.reshape((-1, 2)), boxsize=[9999999, np.pi*2]) # use a 2-pi periodic condition for polar angle (and basically infinity for ratio)
 
 def work(q):
-    print("working on loading triangles")
+    _log.debug("loading triangle database")
     try:
         q.put(TriangleData(np.load(get_triangle_db_path())))
-        print("preloaded triangles")
+        _log.debug("triangle database loaded")
     except Exception:
-        print("no triangles platesolving database found: will now generate one (this will take a few minutes)")
+        _log.info("no triangle database found, generating (this may take a few minutes)")
         platesolve_new.generate()
         q.put(TriangleData(np.load(get_triangle_db_path())))
-    print("finished preparation work")
+    _log.debug("triangle database ready")
 
 def prepare_triangles():
-    print('preparing')
+    _log.debug("preparing triangle database")
     manager = Manager()
     result_queue = manager.Queue()
     _cache.q=result_queue
@@ -53,16 +56,20 @@ def open_catalogue(path, debug_folder=None, **kwaargs):
         if path == 'gaia':
             _cache.catalogue_cache[path] = gaia_search.dbs_gaia(**kwaargs)
         elif path == get_triangle_db_path():
-            print(_cache.prepare_process, _cache.prepare_process.is_alive())
-            i = 1          
-            while _cache.q.empty() and not path in _cache.catalogue_cache:
-                print(f"triangles not ready yet ... waiting for them to be ready ({i})")
-                time.sleep(1)
-                i+=1
-            if not path in _cache.catalogue_cache:
-                _cache.catalogue_cache[path] = _cache.q.get()
-                _cache.prepare_process.join()
-                print("joined")
+            if _cache.q is None:
+                # prepare_triangles() was never called (headless/API use) — load synchronously
+                _log.info("loading triangle database synchronously")
+                _cache.catalogue_cache[path] = TriangleData(np.load(path))
+            else:
+                i = 1
+                while _cache.q.empty() and not path in _cache.catalogue_cache:
+                    _log.info("waiting for triangle database (%ds)", i)
+                    time.sleep(1)
+                    i += 1
+                if not path in _cache.catalogue_cache:
+                    _cache.catalogue_cache[path] = _cache.q.get()
+                    _cache.prepare_process.join()
+                    _log.debug("triangle database process joined")
             
         else:
             _cache.catalogue_cache[path] = database_lookup2.database_searcher(path, debug_folder=debug_folder, star_max_magnitude=12)

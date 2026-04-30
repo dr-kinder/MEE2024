@@ -1,10 +1,22 @@
-Metadata-Version: 1.2
+Metadata-Version: 2.4
 Name: mee2024
 Version: 0.6.0
 Summary: MEE 2024 Stacker
-Home-page: UNKNOWN
 Author: Andrew
-License: UNKNOWN
-Description: UNKNOWN
-Platform: UNKNOWN
 Requires-Python: >=3.9
+License-File: LICENSE
+License-File: AUTHORS
+Requires-Dist: NumPy
+Requires-Dist: Astropy
+Requires-Dist: Photutils
+Requires-Dist: SciPy
+Requires-Dist: Matplotlib
+Requires-Dist: scikit-image
+Requires-Dist: astroquery==0.4.6
+Requires-Dist: FreeSimpleGUI
+Requires-Dist: OpenCV-python
+Requires-Dist: Pandas
+Requires-Dist: scikit-learn
+Requires-Dist: statsmodels
+Requires-Dist: platformdirs
+Dynamic: license-file

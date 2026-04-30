@@ -25,7 +25,7 @@ run_name = "station1-calibration"
 # Path to the centroids file produced by find-stars.
 # In the new pipeline format this is a CSV file; the legacy
 # format uses a .zip archive from the original GUI output.
-input_file = "/Users/jesse/scratch/mee-and-claude/tests/output/station1-calibration/station1-calibration_centroids.csv"
+input_file = "/Users/jesse/scratch/mee-and-claude/tests/output/station1-calibration/station1-calibration_centroids.zip"
 
 # For the ZENITH run: leave distortion_reference_files blank and
 # set distortion_fixed_coefficients = "None" so that all polynomial

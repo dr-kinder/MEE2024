@@ -12,10 +12,12 @@ from mee2024.database_lookup2 import database_searcher
 from mee2024.MEE2024util import resource_path, get_triangle_db_path
 from pathlib import Path
 from mee2024 import database_cache
+import logging
+_log = logging.getLogger(__name__)
 
 def generate():
     dbs = database_cache.open_catalogue(resource_path("resources/compressed_tycho2024epoch.npz"))
-    print(dbs.star_table.shape)
+    _log.debug("star table shape: %s", dbs.star_table.shape)
 
     # parameters for step 1
     a = 80000
@@ -31,7 +33,7 @@ def generate():
     theta_pat = np.radians(1.7)
 
     vectors = dbs.star_table[:d, 2:5].astype(np.float32)
-    print(f'keeping down to mag {dbs.star_table[a, 5]}')
+    _log.debug("keeping down to mag %.2f", dbs.star_table[a, 5])
     kd_tree1 = KDTree(vectors)
 
     kept = np.zeros(d, dtype=bool)
@@ -55,9 +57,8 @@ def generate():
             if i < a:
                 kept[i] = 1
             kept2[i] = 1
-    print(f'note kept {np.sum(kept[:a])} of first {a} stars as anchors')
-    print(f'note kept {np.sum(kept[:a+b])} of first {a+b} stars as anchors')
-    print(f'note kept {np.sum(kept2)} of first {d} stars as legs')
+    _log.debug("anchors: kept %d of %d  +  %d of %d  legs: %d of %d",
+               np.sum(kept[:a]), a, np.sum(kept[:a+b]), a+b, np.sum(kept2), d)
     
     vectors_kept = vectors[kept, :]
     kept_vectors_ind = np.nonzero(kept)[0] # np.nonzero returns tuples
@@ -75,7 +76,7 @@ def generate():
         or (np.abs(np.degrees(dbs.star_table[i, 0]) - 143.3175) < 0.01 and np.abs(np.degrees(dbs.star_table[i, 1]) - 9.1684) < 0.01) \
         or (np.abs(np.degrees(dbs.star_table[i, 0]) - 143.7188) < 0.01 and np.abs(np.degrees(dbs.star_table[i, 1]) - 9.6767) < 0.01) \
         :           
-            print(i, dbs.star_table[i, 5], kept[i])
+            _log.debug("star %d mag=%.2f kept=%s", i, dbs.star_table[i, 5], kept[i])
             
     '''
     step 2: (2.1) find the #c closest stars (within theta_pat) (among the #d brightest)
@@ -100,9 +101,9 @@ def generate():
         ind = kept_vectors_ind[i]
         neighbours.remove(ind - cumsum[ind]) # don't match self
         if i == 1661:#31633:
-            print(neighbours)
+            _log.debug("neighbours: %s", neighbours)
         if len(neighbours) < c+e:
-            print(f'note: insufficient neighbours found on index {i}')
+            _log.debug("insufficient neighbours on index %d", i)
             raise Exception('edge case handling unimplemented!')
         # delta vectors
         delta = vectors2[neighbours] - vectors_kept[i]
@@ -135,7 +136,7 @@ def generate():
             of each pattern is the anchor star
 
     '''
-    print('starting to find patterns...')
+    _log.info("generating triangle database...")
     triangles = np.zeros((nkept, (c+e)*(c+e-1)//2, 2), dtype=np.float32)
 
     for i in range(nkept):
@@ -151,7 +152,7 @@ def generate():
     triangles_path = get_triangle_db_path()
     triangles_path.parent.mkdir(exist_ok=True)
     np.savez_compressed(triangles_path, anchors = vectors_kept, pattern_ind=pattern_ind, pattern_data=pattern_data, triangles=triangles)
-    print(f"completed generating triangle database -- {triangles.size//2} triangles saved")        
+    _log.info("triangle database complete: %d triangles", triangles.size//2)        
             
 if __name__ == '__main__':
     generate()

@@ -27,6 +27,8 @@ from matplotlib.patches import Ellipse
 import matplotlib.transforms as transforms
 import statsmodels.api as sm
 from sklearn.linear_model import LinearRegression
+import logging
+_log = logging.getLogger(__name__)
 
 def confidence_ellipse(cov, mu, ax, n_std=3.0, facecolor='none', **kwargs):
     """
@@ -55,7 +57,7 @@ def confidence_ellipse(cov, mu, ax, n_std=3.0, facecolor='none', **kwargs):
 
     
     pearson = cov[0, 1]/np.sqrt(cov[0, 0] * cov[1, 1])
-    print(pearson)
+    _log.debug("confidence ellipse pearson=%.4f", pearson)
     # Using a special case to obtain the eigenvalues of this
     # two-dimensional dataset.
     ell_radius_x = np.sqrt(1 + pearson)
@@ -87,15 +89,13 @@ def as_unit_vector(dec, ra):
 
 def eclipse_analysis(path_data, options):
     starttime = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-    print(path_data)
+    _log.info("eclipse_analysis: %s", path_data)
     archive = zipfile.ZipFile(path_data, 'r')
     data = json.load(archive.open('distortion_results.txt'))
     #image_size = data['img_shape']
     df = pd.read_csv(archive.open('CATALOGUE_MATCHED_ERRORS.csv'))
-    print(df)
     df = df.astype({'px':float, 'py':float, 'RA(catalog)':float, 'RA(obs)':float, 'DEC(catalog)':float, 'DEC(obs)':float, 'magV':float}) # fix datatypes
     df = df.loc[df['magV'] <= options['eclipse_limiting_mag']]
-    print(df)
     if options['remove_double_stars_eclipse']:
         df = df.loc[~df['flag_is_double']]
     #df = df.drop(df[df['ID'] == 'gaia:2577063532462714368'].index)
@@ -104,26 +104,19 @@ def eclipse_analysis(path_data, options):
 
     
     if data['gravitational correction enabled?']:
-        print('WARNING: gravity was enabled in the input data')
-        #raise Exception("expected 'gravitational correction enabled?':False")
+        _log.warning("gravity correction was enabled in the input distortion data")
 
-    observing_location = EarthLocation(lat=data['observation_lat (degrees)'], lon=data['observation_long (degrees)'], height=data['observation_height (m)']*u.m)  
+    observing_location = EarthLocation(lat=data['observation_lat (degrees)'], lon=data['observation_long (degrees)'], height=data['observation_height (m)']*u.m)
     observing_time = Time(data['observation_date'] + ' ' + data['observation_time (UTC)'])
     sun = get_body("sun", observing_time, observing_location)
     moon = get_body("moon", observing_time, observing_location)
-    print(sun)
-    print(moon)
-
     sun_apparent_angular_radius = np.degrees((astropy.constants.R_sun / sun.distance).to(u.dimensionless_unscaled).value)
     moon_apparent_angular_radius = np.degrees((1737.4*u.km / moon.distance).to(u.dimensionless_unscaled).value)
-    print(sun_apparent_angular_radius)
-    print(moon_apparent_angular_radius)
+    _log.debug("sun radius=%.4f deg  moon radius=%.4f deg", sun_apparent_angular_radius, moon_apparent_angular_radius)
     aa = AltAz(location=observing_location, obstime=observing_time)
-
     local_sun = sun.transform_to(aa)
     local_moon = moon.transform_to(aa)
-    print(local_sun)
-    print(local_moon)
+    _log.debug("local sun: %s  local moon: %s", local_sun, local_moon)
     #print(local_sun.ra, local_sun.dec)
     #print(local_moon.ra, local_moon.dec)
     
@@ -140,11 +133,10 @@ def eclipse_analysis(path_data, options):
     delta_vectors = stars_cata_v - reference_v
 
     
-    print("radial distances (in solar radii)", rad_dist)
-
+    _log.debug("radial distances (solar radii): %s", rad_dist)
 
     if options['limit_radial_sun_radii']:
-        print("limiting radii to",  options['limit_radial_sun_radii_value'])
+        _log.info("limiting radii to %.1f solar radii", options['limit_radial_sun_radii_value'])
         mask = rad_dist < options['limit_radial_sun_radii_value']
         df_rem = df.loc[~mask]
         df = df.loc[mask]
@@ -154,7 +146,7 @@ def eclipse_analysis(path_data, options):
         rad_dist = rad_dist[mask]
         delta_vectors = delta_vectors[mask]
     else:
-        print("not limiting radii")
+        _log.debug("not limiting radii")
 
     field_describe = f"Eclipse Field with {df.shape[0]} chosen stars with magnitudes {np.min(df['magV']):.1f} to {np.max(df['magV']):.1f}"
     if options['flag_display3']:
@@ -235,13 +227,13 @@ def eclipse_analysis(path_data, options):
     
     
     result1 = scipy.optimize.minimize(error_function1, 0, method = 'Nelder-Mead')
-    print(result1)
+    _log.debug("optimizer result1: %s", result1)
 
     result2 = scipy.optimize.minimize(error_function2, (0, 1), method = 'Nelder-Mead')
-    print(result2)
+    _log.debug("optimizer result2: %s", result2)
 
     result3 = scipy.optimize.minimize(error_function3, (0, 0), method = 'Nelder-Mead')
-    print(result3)
+    _log.debug("optimizer result3: %s", result3)
     ### rms minimisation curve
     if options['flag_display3'] and False:    
         xxx = np.linspace(-0.25, 3)
@@ -264,6 +256,17 @@ def eclipse_analysis(path_data, options):
     
     r_0 = np.arcsin(np.linalg.norm(stars_obs_v - reference_v, axis=1) / 2) * 2
     deflection_obs_0 = np.degrees(radial_distances_obs - radial_distances_catalog)*3600
+
+    pd.DataFrame({
+        'star_id':              df['ID'].values,
+        'RA_catalog':           df['RA(catalog)'].values,
+        'DEC_catalog':          df['DEC(catalog)'].values,
+        'RA_obs':               df['RA(obs)'].values,
+        'DEC_obs':              df['DEC(obs)'].values,
+        'mag':                  df['magV'].values,
+        'rad_dist_solar_radii': rad_dist,
+        'deflection_arcsec':    deflection_obs_0,
+    }).to_csv(Path(output_path(f'ECLIPSE_DEFLECTIONS_DATA{starttime}.csv', options)), index=False)
 
     platescale0 = data['platescale (arcseconds/pixel)']
 
@@ -298,14 +301,13 @@ def eclipse_analysis(path_data, options):
         plt.xlabel("radial position (solar radii)", fontsize=16)
         plt.xticks(np.arange(2, 12, 1.0), fontsize=14)
         plt.yticks(fontsize=14)
-        ax.tick_params(axis='both', which='major', labelsize=12)
+        plt.tick_params(axis='both', which='major', labelsize=12)
         plt.annotate(f"L = {mu[0]:.3f}\n radial rmse = {resid:.3f} arcsec", (3, 1.5), fontsize=16)
         plt.title('Deflections for ' + field_describe + ' ' + labelx, fontsize=16)
         xx = np.linspace(np.min(rad_dist)-0.5, np.max(rad_dist))
         yy = mu[0] / xx
         plt.plot(xx, yy, color='black')
-        plt.savefig(output_path(f'ECLIPSE_DEFLECTIONS_corrected{labelx}{starttime}.png', options), dpi=400)
-        if options['flag_display3']:      
+        if options['flag_display3']:
             plt.show()
         plt.close()
     
@@ -316,26 +318,20 @@ def eclipse_analysis(path_data, options):
         x=np.c_[1/rad_dist.reshape(-1, 1)]
         model = sm.OLS(deflection_obs,x)
         results = model.fit()
-        print(results.params)
-        print(results.bse)
-        print(results.summary())
+        _log.debug("method1 params=%s  bse=%s", results.params, results.bse)
+        _log.debug("method1 summary:\n%s", results.summary())
         errs = results.predict(x)-deflection_obs
         factor = 3600 / platescale0 * sun_apparent_angular_radius
         plate_covariance2 = np.dot(1/rad_dist, rad_dist) / np.dot(1/rad_dist, 1/rad_dist) * platescale_relative_uncertainty * factor
-        print("pbcovarice2", plate_covariance2)
-          
         cov = results.cov_params()
         mu = results.params
-        print(cov, mu)
-
         cov2 = np.zeros((2, 2), dtype=np.float64)
         cov2[0,0] = cov[0,0] + plate_covariance2**2 #+ plate_covariance * platescale_relative_uncertainty**2 * factor**2
         cov2[1,1] = (platescale_relative_uncertainty*platescale0)**2
         cov2[1, 0] = -plate_covariance2 * platescale_relative_uncertainty * platescale0
         cov2[0, 1] = -plate_covariance2 * platescale_relative_uncertainty * platescale0
-        print("initial std , corrected", cov[0,0]**0.5, cov2[0,0]**0.5)
+        _log.debug("method1 std initial=%.4f corrected=%.4f", cov[0,0]**0.5, cov2[0,0]**0.5)
         mu2 = [mu[0], platescale0]
-        print("final cov mu ", cov2, mu2)
         return mu2, cov2, np.mean(errs**2)**0.5
 
     # fit A/r + Br fit (platescale degree of freedom kept)
@@ -344,19 +340,17 @@ def eclipse_analysis(path_data, options):
         x = np.c_[1/rad_dist.reshape(-1, 1), rad_dist.reshape(-1, 1)]
         model = sm.OLS(deflection_obs,x)
         results = model.fit()
-        print(results.params)
-        print(results.bse)
-        print(results.summary())
+        _log.debug("method2 params=%s  bse=%s", results.params, results.bse)
+        _log.debug("method2 summary:\n%s", results.summary())
         errs = results.predict(x)-deflection_obs
         factor = 3600 / platescale0 * sun_apparent_angular_radius
         cov = results.cov_params()
         mu = results.params
-        print(cov, mu)
         mu[1] /= factor
         cov[:, 1] /= factor
         cov[1, :] /= factor
         mu[1] += platescale0
-        print("final cov, mu", cov, mu)        
+        _log.debug("method2 final cov=%s  mu=%s", cov, mu)
         return mu, cov, np.mean(errs**2)**0.5
         
 
@@ -368,18 +362,17 @@ def eclipse_analysis(path_data, options):
     if options['eclipse_method'] in ('Method 2', 'Method 1 & 2'):
         mu2, cov2, resid2 = analysis_mode_2(rad_dist, deflection_obs_0, platescale0, sun_apparent_angular_radius)
         plot_confidence_ellipse(cov2, mu2, edgecolor='fuchsia', labelx=' (method 2)')
-    plt.savefig(output_path(f'ECLIPSE_confidence_ellipse{starttime}.png', options), dpi=400)
-    plt.show()
+    if options.get('flag_display3', False):
+        plt.show()
+    plt.close()
     if options['eclipse_method'] in ('Method 1', 'Method 1 & 2'):
         show_deflection_scatter(cov1, mu1, resid1, deflection_obs_0, labelx=' (method 1)')
     if options['eclipse_method'] in ('Method 2', 'Method 1 & 2'):
         show_deflection_scatter(cov2, mu2, resid2, deflection_obs_0, labelx=' (method 2)')
-        
-    plt.show()
 
     output_name = f'ECLIPSE_OUTPUT{starttime}.txt'
     output_file = Path(output_path(output_name, options))
-    print(output_file)
+    _log.info("writing output: %s", output_file)
     with open(output_file, 'w') as f:
         f.write(f"MEE2024 version: {_version()}\n")
         f.write(f"input file: {path_data}\n\n")

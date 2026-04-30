@@ -30,6 +30,8 @@ from mee2024 import platesolve_triangle
 from mee2024.MEE2024util import get_bbox
 import shutil
 from mee2024 import gravity_sweep
+import logging
+_log = logging.getLogger(__name__)
 
 def get_fitfunc(plate, target, transform_function=transforms.linear_transform, img_shape=None):
     def fitfunc(x):
@@ -61,7 +63,7 @@ def get_nn_correlation_error(positions, errors, options):
         nn_rs.append(min_r)
         nn_corrs.append(min_corr)
 
-    print(f'nearest neighbour corr={np.mean(nn_corrs)}, mean distance:{np.mean(nn_rs)}')
+    _log.debug("nearest neighbour corr=%.4f, mean distance:%.4f", np.mean(nn_corrs), np.mean(nn_rs))
     return np.mean(nn_corrs), np.mean(nn_rs)
 '''
 todo: update using the better version in platesolve_triangle
@@ -196,7 +198,7 @@ def match_and_fit_distortion(path_data, options, debug_folder=None):
     transformed_final = transforms.linear_transform(result, plate2_corrected, image_size)
     mag_errors = np.linalg.norm(transformed_final - stardata.get_vectors(), axis=1)
     errors_arcseconds = np.degrees(mag_errors)*3600
-    print('pre-outlier removed rms error (arcseconds):', np.degrees(np.mean(mag_errors**2)**0.5)*3600)
+    _log.info("pre-outlier rms: %.4f arcsec", np.degrees(np.mean(mag_errors**2)**0.5)*3600)
 
     # compute flag:
     flag_is_double = np.zeros(stardata.ids.shape[0], int)
@@ -211,7 +213,7 @@ def match_and_fit_distortion(path_data, options, debug_folder=None):
     flag_missing_pm = np.isnan(stardata.get_pmotion()[:, 0])
     flag_is_outlier = errors_arcseconds >= options['distortion_fit_tol']
     flag_unexplained_outlier = np.logical_and(np.logical_and(flag_is_outlier, np.logical_not(flag_missing_pm)), np.logical_not(flag_is_double))
-    print(np.sum(flag_unexplained_outlier), ' unexplained outliers')
+    _log.debug("%d unexplained outliers", np.sum(flag_unexplained_outlier))
     if options['remove_double_tab2']:
         keep_j = np.logical_and(np.logical_and(errors_arcseconds < options['distortion_fit_tol'], ~flag_is_double), ~flag_missing_pm)
     else:
@@ -224,7 +226,7 @@ def match_and_fit_distortion(path_data, options, debug_folder=None):
     #flag_is_double = flag_is_double[keep_j]
     #flag_missing_pm = flag_missing_pm[keep_j]
     
-    print(f'{np.sum(1-keep_j)} outliers more than {options["distortion_fit_tol"]} arcseconds removed')
+    _log.info("%d outliers > %.1f arcsec removed", np.sum(1-keep_j), options["distortion_fit_tol"])
     # do 2nd fit with outliers removed
 
     if options['guess_date']:
@@ -241,7 +243,7 @@ def match_and_fit_distortion(path_data, options, debug_folder=None):
     mag_errors = np.linalg.norm(transformed_final - stardata.get_vectors(), axis=1)
     errors_arcseconds = np.degrees(mag_errors)*3600
     
-    print('final rms error (arcseconds):', np.degrees(np.mean(mag_errors**2)**0.5)*3600)
+    _log.info("final rms: %.4f arcsec", np.degrees(np.mean(mag_errors**2)**0.5)*3600)
     detransformed = transforms.detransform_vectors(result, stardata.get_vectors())
     px_errors = plate2_corrected-detransformed
     nn_corr, nn_r = get_nn_correlation_error(plate2, px_errors, options)
@@ -324,7 +326,6 @@ def match_and_fit_distortion(path_data, options, debug_folder=None):
     axs[1, 1].set_xlabel('radial coordinate (pixels)')
     axs[1, 1].grid()
     fig.tight_layout()
-    plt.savefig(output_dir / 'Error_graphs.png', bbox_inches="tight", dpi=600)
     if options['flag_display2']:
         plt.show()
     plt.close()
@@ -345,6 +346,7 @@ def match_and_fit_distortion(path_data, options, debug_folder=None):
                                'RA(obs)': transforms.to_polar(transformed_final)[:, 1],
                                'DEC(obs)': transforms.to_polar(transformed_final)[:, 0],
                                'magV': stardata_unfiltered.get_mags(),
+                               'parallax(mas)': stardata_unfiltered.get_parallax(),
                                'error(")':errors_arcseconds,
                                'flag_is_double':flag_is_double,
                                'flag_missing_pm':flag_missing_pm,
@@ -383,8 +385,8 @@ def show_error_coherence(positions, errors, options):
         nn_rs.append(min_r)
         nn_corrs.append(min_corr)
 
-    print(f'nearest neighbour corr={np.mean(nn_corrs)}, mean distance:{np.mean(nn_rs)}')
-                
+    _log.debug("nearest neighbour corr=%.4f, mean distance:%.4f", np.mean(nn_corrs), np.mean(nn_rs))
+
 
     statistic, bin_edges, binnumber = scipy.stats.binned_statistic(dist, corr, bins = 8, range=(0, 1000))
     

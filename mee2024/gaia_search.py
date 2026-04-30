@@ -3,7 +3,23 @@ import astropy.units as u
 #from astropy.coordinates import SkyCoord
 import matplotlib.pyplot as plt
 import numpy as np
+import time
 from mee2024 import StarData
+import logging
+_log = logging.getLogger(__name__)
+
+def _gaia_query(query, retries=5, delay=10):
+    """Run an async Gaia TAP query with retries for transient server errors."""
+    for attempt in range(1, retries + 1):
+        try:
+            job = Gaia.launch_job_async(query)
+            return job.get_results()
+        except Exception as e:
+            if attempt == retries:
+                raise
+            _log.warning("Gaia query failed (attempt %d/%d): %s — retrying in %ds",
+                         attempt, retries, e, delay)
+            time.sleep(delay)
 
 '''
 coord = SkyCoord(ra=280, dec=-60, unit=(u.degree, u.degree), frame='icrs')
@@ -38,9 +54,7 @@ FROM gaiadr3.gaia_source \
 WHERE source_id = 5853498713190525696"#  4472832130942575872"
     job     = Gaia.launch_job_async(query)
     results = job.get_results()
-    print(f'Table size (rows): {len(results)}')
-
-    print(results)
+    _log.debug("get_prop_pos: %d rows", len(results))
     return results[0][0], results[0][1]
 
 def select_in_box(T1, ra_range, dec_range, max_mag):
@@ -50,12 +64,9 @@ FROM gaiadr3.gaia_source \
 WHERE ra BETWEEN {ra_range[0]} AND {ra_range[1]} AND \
 dec BETWEEN {dec_range[0]} AND {dec_range[1]} AND \
 phot_g_mean_mag BETWEEN 3 AND {max_mag}"
-    print(query)
-    job     = Gaia.launch_job_async(query)
-    results = job.get_results()
-    print(f'Table size (rows): {len(results)}')
-
-    results.pprint(max_width=400, max_lines=30)
+    _log.debug("select_in_box query: %s", query)
+    results = _gaia_query(query)
+    _log.info("select_in_box: %d rows", len(results))
     return results
 
 def lookup_nearby(startable, distance, max_mag_neighbours):
@@ -72,10 +83,9 @@ dec BETWEEN  {(dec - distance/3600):.5f} AND {(dec + distance / 3600):.5f})'
     p = [helper(ra, dec) for (ra, dec) in list(zip(np.degrees(startable.get_ra()), np.degrees(startable.get_dec())))]
     query += '(' + ' OR '.join(p) + ')'
     query += f' AND phot_g_mean_mag BETWEEN 3 AND {max_mag_neighbours}'
-    print(query)
-    job     = Gaia.launch_job_async(query)
-    results = job.get_results()
-    print(f'Table size (rows): {len(results)}')
+    _log.debug("lookup_nearby query: %s", query)
+    results = _gaia_query(query)
+    _log.debug("lookup_nearby: %d rows", len(results))
 
     star_table = np.zeros((len(results), 9), dtype=float)
 
@@ -96,7 +106,7 @@ class dbs_gaia:
     def lookup_objects(self, range_ra, range_dec, star_max_magnitude=12, time=2024):
         if star_max_magnitude>self.gaia_limit:
             star_max_magnitude = self.gaia_limit # safety
-            print(f'note: star_max_magnitude reduced to {self.gaia_limit} for safety')
+            _log.info("star_max_magnitude capped at %.1f for safety", self.gaia_limit)
         results = select_in_box(time, range_ra, range_dec, star_max_magnitude) # TODO: dynamic current epoch
         l = len(results)
 
@@ -120,12 +130,10 @@ def select_bright(T1, max_mag):
 COORD2(ESDC_EPOCH_PROP_POS(ra, dec, parallax, pmra, pmdec, radial_velocity, ref_epoch, {T1})) \
 FROM gaiadr3.gaia_source \
 WHERE phot_g_mean_mag BETWEEN -2 AND {max_mag}"
-    print(query)
+    _log.debug("select_bright query: %s", query)
     job     = Gaia.launch_job_async(query)
     results = job.get_results()
-    print(f'Table size (rows): {len(results)}')
-
-    results.pprint(max_width=400, max_lines=200)
+    _log.info("select_bright: %d rows", len(results))
     return results
         
 if __name__ == '__main__':

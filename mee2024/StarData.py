@@ -3,6 +3,8 @@ import numpy as np
 import astropy.units as u
 from astropy.coordinates import SkyCoord, Distance
 from astropy.time import Time
+import logging
+_log = logging.getLogger(__name__)
 from mee2024.MEE2024util import date_string_to_float
  
 '''
@@ -34,7 +36,7 @@ class StarData:
         if r is None:
             return # make empty stardata
         self.epoch = Time(date, format='jyear', scale='tcb')
-        print('epoch', self.epoch)
+        _log.debug("epoch %s", self.epoch)
         self.has_pm = has_pm
         self.mags = r['phot_g_mean_mag']
         self.ids = r['SOURCE_ID']

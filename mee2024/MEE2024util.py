@@ -12,6 +12,7 @@ import logging
 import numpy as np
 from pathlib import Path
 from platformdirs import user_data_dir, user_config_dir
+_log = logging.getLogger(__name__)
 
 def _version():
     return 'v0.6.0'
@@ -66,29 +67,29 @@ return parameters from file, or default if file not found or invalid
 '''
 def read_ini(options):
     # check for config.txt file for working directory
-    print('loading config file...')
+    _log.debug("loading config file")
     try:
         with open(get_config_path(), 'r', encoding="utf-8") as fp:
             loaded = json.load(fp)
             if not '__version__' in loaded or not loaded['__version__'] == _version(): # update ini
                 loaded['__version__'] = _version()
                 loaded['rough_match_threshhold'] = 36 # reset threshhold (since it was changed from degrees to arcsec)
-            options.update(loaded) # if config has missing entries keep default   
+            options.update(loaded) # if config has missing entries keep default
     except FileNotFoundError:
-        print('note: no config file found - using default parameters')
+        _log.debug("no config file found, using defaults")
     except Exception:
         traceback.print_exc()
-        print('note: error reading config file - using default parameters')
+        _log.warning("error reading config file, using defaults")
 
 
 def write_ini(options):
     try:
-        print('saving config file ...')
+        _log.debug("saving config file")
         with open(get_config_path(), 'w', encoding="utf-8") as fp:
             json.dump(options, fp, sort_keys=True, indent=4)
     except Exception:
         traceback.print_exc()
-        print('ERROR: failed to write config file: ' + get_config_path())
+        _log.warning("failed to write config file: %s", get_config_path())
 
 '''
 convert a iso-format datestring e.g 01/02/2023 to a float (e.g. 2023.08)
@@ -106,27 +107,6 @@ def get_bbox(corners):
             t = (t[1], t[0])
         return t
     return one_dim(corners[:, 1]), one_dim(corners[:, 0])
-
-def load_config_toml(path):
-    """Read a TOML config file and return a flat dict suitable for merging into options.
-
-    Section names are discarded; only leaf key-value pairs are returned.
-    This means both flat TOMLs and section-grouped TOMLs load identically.
-    Raises on file-not-found, parse error, or any other I/O problem.
-    """
-    import tomllib
-    with open(path, 'rb') as f:
-        data = tomllib.load(f)
-    flat = {}
-    def _flatten(d):
-        for k, v in d.items():
-            if isinstance(v, dict):
-                _flatten(v)
-            else:
-                flat[k] = v
-    _flatten(data)
-    return flat
-
 
 def write_config_toml(options, path):
     """Write the current options dict to a TOML file at path.
@@ -212,6 +192,26 @@ def write_config_toml(options, path):
 
     with open(path, 'w', encoding='utf-8') as f:
         f.write('\n'.join(lines))
+
+
+def load_config_toml(path):
+    """Read a TOML config file and return a flat dict suitable for merging into options.
+
+    Section names are discarded; only leaf key-value pairs are returned, so both
+    flat TOMLs and section-grouped TOMLs load identically.
+    """
+    import tomllib
+    with open(path, 'rb') as f:
+        data = tomllib.load(f)
+    flat = {}
+    def _flatten(d):
+        for k, v in d.items():
+            if isinstance(v, dict):
+                _flatten(v)
+            else:
+                flat[k] = v
+    _flatten(data)
+    return flat
 
 
 '''
