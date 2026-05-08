@@ -1,6 +1,30 @@
 # MEE2024
 Modern Eddington Experiment codebase
 
+## What's New in `dev`
+
+This branch adds GUI improvements and a Python scripting API on top of the stable `main` branch.
+
+**GUI improvements**
+- Load Config button on each tab — populate all fields from a TOML config file
+- 14pt default font, scrollable tabs, resizable window
+- Auto-populate later tabs from the most recent output of earlier tabs
+
+**Scripting API** — run the pipeline without the GUI:
+```python
+from mee2024.api import find_stars, compute_distortion, fit_data
+```
+
+### Setup
+
+```bash
+git checkout dev
+conda env create -f environment.yml
+conda activate mee-at-oit
+pip install -e .
+python mee2024/main.py   # GUI
+```
+
 ## Installation
 
 ### Windows
