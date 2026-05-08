@@ -25,12 +25,12 @@ run_name = "station1-eclipse"
 
 
 [input]
-input_file = "/Users/jesse/scratch/mee-and-claude/tests/output/station1-eclipse/station1-eclipse_centroids.zip"
+input_file = "/path/to/your/output/station1-eclipse/station1-eclipse_centroids.zip"
 
 # Path to the distortion output from the ZENITH run. The cubic
 # and higher-order coefficients will be read from this file and
 # held fixed during the eclipse fit.
-distortion_reference_files = "/Users/jesse/scratch/mee-and-claude/tests/output/station1-calibration/station1-calibration_distortion.zip"
+distortion_reference_files = "/path/to/your/output/station1-calibration/station1-calibration_distortion.zip"
 
 # The GUI label reads "Fix order higher than: <choice>".
 # "linear" means: fix all terms of degree ≥ 2 (quadratic and above),
@@ -43,7 +43,7 @@ distortion_fixed_coefficients = "linear"
 
 
 [output]
-output_dir = "/Users/jesse/scratch/mee-and-claude/tests/output/station1-eclipse"
+output_dir = "/path/to/your/output/station1-eclipse"
 
 
 # ------------------------------------------------------------

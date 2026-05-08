@@ -24,18 +24,18 @@ run_name = "station1-eclipse"
 # ------------------------------------------------------------
 
 [input]
-input_folder = "/Users/jesse/scratch/eddington/sample-data/eclipse/science"
+input_folder = "/path/to/your/eclipse/science"
 input_files  = []
 
-dark_folder = "/Users/jesse/scratch/eddington/sample-data/eclipse/dark"
+dark_folder = "/path/to/your/eclipse/dark"
 dark_files  = []
 
-flat_folder = "/Users/jesse/scratch/eddington/sample-data/eclipse/flat"
+flat_folder = "/path/to/your/eclipse/flat"
 flat_files  = []
 
 
 [output]
-output_dir = "/Users/jesse/scratch/mee-and-claude/tests/output/station1-eclipse"
+output_dir = "/path/to/your/output/station1-eclipse"
 
 
 # ------------------------------------------------------------

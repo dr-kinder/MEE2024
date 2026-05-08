@@ -28,24 +28,24 @@ run_name = "station1-calibration"
 # ------------------------------------------------------------
 
 [input]
-input_folder = "/Users/jesse/scratch/eddington/sample-data/calibration/science"
+input_folder = "/path/to/your/calibration/science"
 input_files  = []   # e.g. ["/path/to/img1.FIT", "/path/to/img2.FIT"]
 
 # Dark frames are subtracted pixel-by-pixel to remove thermal noise.
 # Leave both empty to skip dark subtraction.
-dark_folder = "/Users/jesse/scratch/eddington/sample-data/calibration/dark"
+dark_folder = "/path/to/your/calibration/dark"
 dark_files  = []
 
 # Flat frames correct for vignetting and pixel-to-pixel sensitivity variation.
 # Leave both empty to skip flat correction.
-flat_folder = "/Users/jesse/scratch/eddington/sample-data/calibration/flat"
+flat_folder = "/path/to/your/calibration/flat"
 flat_files  = []
 
 
 [output]
 # Directory where output files will be written.
 # Must already exist; will not be created automatically.
-output_dir = "/Users/jesse/scratch/mee-and-claude/tests/output/station1-calibration"
+output_dir = "/path/to/your/output/station1-calibration"
 
 
 # ------------------------------------------------------------

@@ -36,11 +36,11 @@ run_name = "station1-eclipse"
 # Distortion-corrected output from compute-distortion (eclipse run).
 # In the new pipeline format this is a TOML file; the legacy format
 # uses a .zip archive from the original GUI.
-input_file = "/Users/jesse/scratch/mee-and-claude/tests/output/station1-eclipse/station1-eclipse_distortion.zip"
+input_file = "/path/to/your/output/station1-eclipse/station1-eclipse_distortion.zip"
 
 
 [output]
-output_dir = "/Users/jesse/scratch/mee-and-claude/tests/output/station1-eclipse"
+output_dir = "/path/to/your/output/station1-eclipse"
 
 
 # ------------------------------------------------------------
