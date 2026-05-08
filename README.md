@@ -1,6 +1,10 @@
 # MEE2024
 Modern Eddington Experiment codebase
 
+> **Development version:** A `dev` branch is available with GUI improvements
+> (Load Config, larger font, scrollable tabs) and a Python scripting API.
+> Switch to the `dev` branch and see its README for setup instructions.
+
 ## Installation
 
 ### Windows
