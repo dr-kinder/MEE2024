@@ -1,4 +1,4 @@
-name: mee-and-claude
+name: mee-at-oit
 channels:
   - conda-forge
   - defaults
