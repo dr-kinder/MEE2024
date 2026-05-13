@@ -59,7 +59,12 @@ def open_catalogue(path, debug_folder=None, **kwaargs):
             if _cache.q is None:
                 # prepare_triangles() was never called (headless/API use) — load synchronously
                 _log.info("loading triangle database synchronously")
-                _cache.catalogue_cache[path] = TriangleData(np.load(path))
+                try:
+                    _cache.catalogue_cache[path] = TriangleData(np.load(path))
+                except FileNotFoundError:
+                    _log.info("triangle database not found, generating (this may take a few minutes)...")
+                    platesolve_new.generate()
+                    _cache.catalogue_cache[path] = TriangleData(np.load(path))
             else:
                 i = 1
                 while _cache.q.empty() and not path in _cache.catalogue_cache:

@@ -12,8 +12,11 @@ def _gaia_query(query, retries=5, delay=10):
     """Run an async Gaia TAP query with retries for transient server errors."""
     for attempt in range(1, retries + 1):
         try:
+            _log.info("submitting Gaia TAP query (attempt %d/%d)...", attempt, retries)
             job = Gaia.launch_job_async(query)
-            return job.get_results()
+            results = job.get_results()
+            _log.info("Gaia returned %d rows", len(results))
+            return results
         except Exception as e:
             if attempt == retries:
                 raise
@@ -64,9 +67,11 @@ FROM gaiadr3.gaia_source \
 WHERE ra BETWEEN {ra_range[0]} AND {ra_range[1]} AND \
 dec BETWEEN {dec_range[0]} AND {dec_range[1]} AND \
 phot_g_mean_mag BETWEEN 3 AND {max_mag}"
+    _log.info("querying Gaia (mag ≤ %.1f, RA %.2f–%.2f, dec %.2f–%.2f) — may take 1–2 min",
+              max_mag, ra_range[0], ra_range[1], dec_range[0], dec_range[1])
     _log.debug("select_in_box query: %s", query)
     results = _gaia_query(query)
-    _log.info("select_in_box: %d rows", len(results))
+    _log.info("select_in_box: %d stars returned", len(results))
     return results
 
 def lookup_nearby(startable, distance, max_mag_neighbours):
