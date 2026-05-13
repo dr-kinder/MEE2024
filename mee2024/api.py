@@ -116,12 +116,11 @@ _DEFAULTS = {
 }
 
 
-def _load(config_path):
-    """Load TOML config, merge with defaults, force headless display flags."""
-    flat = load_config_toml(config_path)
+def _load(config):
+    """Load config from a TOML path or a plain dict, merge with defaults, force headless."""
+    flat = config if isinstance(config, dict) else load_config_toml(config)
     options = dict(_DEFAULTS)
     options.update(flat)
-    # API is always headless — ignore any flag_display* values in the TOML.
     options['flag_display']  = False
     options['flag_display2'] = False
     options['flag_display3'] = False
@@ -155,9 +154,9 @@ def _resolve_files(folder, file_list, *, label):
     return [f for f in (file_list or []) if f]
 
 
-def find_stars(config_path):
-    """Run Tab 1 (stacker) from a TOML config file."""
-    options = _load(config_path)
+def find_stars(config):
+    """Run Tab 1 (stacker) from a TOML config file path or a config dict."""
+    options = _load(config)
     files = _resolve_files(options.get('input_folder', ''), options.get('input_files', []), label='input')
     darks = _resolve_files(options.get('dark_folder',  ''), options.get('dark_files',  []), label='dark')
     flats = _resolve_files(options.get('flat_folder',  ''), options.get('flat_files',  []), label='flat')
@@ -169,9 +168,9 @@ def find_stars(config_path):
         _stable_link(options['output_dir'], 'centroid_data*.zip', f'{run_name}_centroids.zip')
 
 
-def compute_distortion(config_path):
-    """Run Tab 2 (distortion fitter) from a TOML config file."""
-    options = _load(config_path)
+def compute_distortion(config):
+    """Run Tab 2 (distortion fitter) from a TOML config file path or a config dict."""
+    options = _load(config)
     input_file = options['input_file']
     _log.info("compute_distortion: %s  output=%s", input_file, options.get('output_dir', ''))
     distortion_fitter.match_and_fit_distortion(input_file, options, None)
@@ -180,9 +179,9 @@ def compute_distortion(config_path):
         _stable_link(options['output_dir'], 'distortion_data*.zip', f'{run_name}_distortion.zip')
 
 
-def fit_data(config_path):
-    """Run Tab 3 (eclipse analysis) from a TOML config file."""
-    options = _load(config_path)
+def fit_data(config):
+    """Run Tab 3 (eclipse analysis) from a TOML config file path or a config dict."""
+    options = _load(config)
     input_file = options['input_file']
     _log.info("fit_data: %s  output=%s", input_file, options.get('output_dir', ''))
     eclipse_analysis.eclipse_analysis(input_file, options)
