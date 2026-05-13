@@ -56,6 +56,7 @@ def gravity_sweep(stardata0, plate2, initial_guess, image_size, mask_select, mas
     plt.annotate(string, xy = (result1.x[0], result1.fun), xytext=(result1.x[0]-0.3, result1.fun+0.02), fontsize=14, arrowprops=dict(facecolor='black', shrink=0.05))
     if options['flag_display2']:
         plt.show()
+    plt.close()
 
     ## corrected plate and return polynomial coeffs
     

@@ -1,12 +1,23 @@
 from astroquery.gaia import Gaia
+from astropy.table import Table
 import astropy.units as u
 #from astropy.coordinates import SkyCoord
+import hashlib
 import matplotlib.pyplot as plt
 import numpy as np
+import platformdirs
 import time
+from pathlib import Path
 from mee2024 import StarData
 import logging
 _log = logging.getLogger(__name__)
+
+def _gaia_cache_path(T1, ra_range, dec_range, max_mag):
+    key = f"{T1:.3f}_{ra_range[0]:.5f}_{ra_range[1]:.5f}_{dec_range[0]:.5f}_{dec_range[1]:.5f}_{max_mag:.2f}"
+    digest = hashlib.md5(key.encode()).hexdigest()[:12]
+    cache_dir = Path(platformdirs.user_cache_dir('MEE2024')) / 'gaia'
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir / f"gaia_{digest}.fits"
 
 def _gaia_query(query, retries=5, delay=10):
     """Run an async Gaia TAP query with retries for transient server errors."""
@@ -61,17 +72,24 @@ WHERE source_id = 5853498713190525696"#  4472832130942575872"
     return results[0][0], results[0][1]
 
 def select_in_box(T1, ra_range, dec_range, max_mag):
+    cache_path = _gaia_cache_path(T1, ra_range, dec_range, max_mag)
+    if cache_path.exists():
+        _log.info("loading Gaia catalog from cache (%s)", cache_path.name)
+        return Table.read(str(cache_path))
+
+    _log.info("querying Gaia (mag ≤ %.1f, RA %.2f–%.2f, dec %.2f–%.2f) — may take 1–2 min",
+              max_mag, ra_range[0], ra_range[1], dec_range[0], dec_range[1])
     query = f"SELECT source_id, phot_g_mean_mag, COORD1(ESDC_EPOCH_PROP_POS(ra, dec, parallax, pmra, pmdec, radial_velocity, ref_epoch, {T1})),\
 COORD2(ESDC_EPOCH_PROP_POS(ra, dec, parallax, pmra, pmdec, radial_velocity, ref_epoch, {T1})), parallax, pmra, pmdec, ref_epoch \
 FROM gaiadr3.gaia_source \
 WHERE ra BETWEEN {ra_range[0]} AND {ra_range[1]} AND \
 dec BETWEEN {dec_range[0]} AND {dec_range[1]} AND \
 phot_g_mean_mag BETWEEN 3 AND {max_mag}"
-    _log.info("querying Gaia (mag ≤ %.1f, RA %.2f–%.2f, dec %.2f–%.2f) — may take 1–2 min",
-              max_mag, ra_range[0], ra_range[1], dec_range[0], dec_range[1])
     _log.debug("select_in_box query: %s", query)
     results = _gaia_query(query)
     _log.info("select_in_box: %d stars returned", len(results))
+    results.write(str(cache_path), format='fits', overwrite=True)
+    _log.info("cached Gaia results to %s", cache_path.name)
     return results
 
 def lookup_nearby(startable, distance, max_mag_neighbours):
