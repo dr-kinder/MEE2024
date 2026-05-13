@@ -88,8 +88,11 @@ phot_g_mean_mag BETWEEN 3 AND {max_mag}"
     _log.debug("select_in_box query: %s", query)
     results = _gaia_query(query)
     _log.info("select_in_box: %d stars returned", len(results))
-    results.write(str(cache_path), format='fits', overwrite=True)
-    _log.info("cached Gaia results to %s", cache_path.name)
+    try:
+        results.write(str(cache_path), format='fits', overwrite=True)
+        _log.info("cached Gaia results to %s", cache_path.name)
+    except Exception as e:
+        _log.warning("could not write Gaia cache (%s) — proceeding without cache", e)
     return results
 
 def lookup_nearby(startable, distance, max_mag_neighbours):
