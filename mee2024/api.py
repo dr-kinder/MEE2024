@@ -142,21 +142,29 @@ def _stable_link(out_dir, glob_pat, stable_name):
 
 
 def _resolve_files(folder, file_list, *, label):
-    """Return a sorted list of image paths from a folder glob or an explicit list."""
+    """Return a sorted list of image paths from a folder glob or an explicit list.
+
+    Searches both the folder itself and one level of subfolders, so that
+    timestamp-organised datasets (folder/YYYY-MM-DD_HH_MM_SSZ/*.FIT) work
+    alongside flat layouts (folder/*.FIT).  A second level is intentionally
+    not searched so that 'flagged/' subfolders are skipped automatically.
+    """
     if folder:
-        files = sorted(
-            f for pat in _IMAGE_EXTENSIONS
-            for f in glob.glob(str(Path(folder) / pat))
-        )
+        p = Path(folder)
+        files = sorted(set(
+            f
+            for pat in _IMAGE_EXTENSIONS
+            for f in glob.glob(str(p / pat)) + glob.glob(str(p / '*' / pat))
+        ))
         if not files:
             _log.warning("%s: no image files found in %s", label, folder)
         return files
     return [f for f in (file_list or []) if f]
 
 
-def find_stars(config):
-    """Run Tab 1 (stacker) from a TOML config file path or a config dict."""
-    options = _load(config)
+def find_stars(config_path):
+    """Run Tab 1 (stacker) from a TOML config file."""
+    options = _load(config_path)
     files = _resolve_files(options.get('input_folder', ''), options.get('input_files', []), label='input')
     darks = _resolve_files(options.get('dark_folder',  ''), options.get('dark_files',  []), label='dark')
     flats = _resolve_files(options.get('flat_folder',  ''), options.get('flat_files',  []), label='flat')
@@ -168,9 +176,9 @@ def find_stars(config):
         _stable_link(options['output_dir'], 'centroid_data*.zip', f'{run_name}_centroids.zip')
 
 
-def compute_distortion(config):
-    """Run Tab 2 (distortion fitter) from a TOML config file path or a config dict."""
-    options = _load(config)
+def compute_distortion(config_path):
+    """Run Tab 2 (distortion fitter) from a TOML config file."""
+    options = _load(config_path)
     input_file = options['input_file']
     _log.info("compute_distortion: %s  output=%s", input_file, options.get('output_dir', ''))
     distortion_fitter.match_and_fit_distortion(input_file, options, None)
@@ -179,9 +187,9 @@ def compute_distortion(config):
         _stable_link(options['output_dir'], 'distortion_data*.zip', f'{run_name}_distortion.zip')
 
 
-def fit_data(config):
-    """Run Tab 3 (eclipse analysis) from a TOML config file path or a config dict."""
-    options = _load(config)
+def fit_data(config_path):
+    """Run Tab 3 (eclipse analysis) from a TOML config file."""
+    options = _load(config_path)
     input_file = options['input_file']
     _log.info("fit_data: %s  output=%s", input_file, options.get('output_dir', ''))
     eclipse_analysis.eclipse_analysis(input_file, options)
