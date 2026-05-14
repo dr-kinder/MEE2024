@@ -372,10 +372,10 @@ def get_centroids_blur(img_mask2, ksize=17, r_max=10, options={}, gauss=False, d
     _log.debug("centroid finding (prepare): %.2fs", time.time() - t_start)
     centroid_labels = measure.label(passed, connectivity=1)
     centroid_labels_exp = expand_labels(centroid_labels) # expand by one more ring of pixels
-    properties = measure.regionprops(centroid_labels, data)
     with warnings.catch_warnings():
-        warnings.filterwarnings(action='ignore', message='Mean of empty slice') # RuntimeWarning: invalid value encountered in scalar divide
+        warnings.filterwarnings(action='ignore', message='Mean of empty slice')
         warnings.filterwarnings(action='ignore', message='invalid value encountered in scalar divide')
+        properties     = measure.regionprops(centroid_labels,     data)
         properties_exp = measure.regionprops(centroid_labels_exp, data)
 
     _log.debug("centroid finding (labelling): %.2fs", time.time() - t_start)
