@@ -166,6 +166,9 @@ def find_stars(config_path):
     """Run Tab 1 (stacker) from a TOML config file."""
     options = _load(config_path)
     files = _resolve_files(options.get('input_folder', ''), options.get('input_files', []), label='input')
+    exclude = {Path(f).name for f in options.get('exclude_files', [])}
+    if exclude:
+        files = [f for f in files if Path(f).name not in exclude]
     darks = _resolve_files(options.get('dark_folder',  ''), options.get('dark_files',  []), label='dark')
     flats = _resolve_files(options.get('flat_folder',  ''), options.get('flat_files',  []), label='flat')
     _log.info("find_stars: %d images  %d darks  %d flats  output=%s",
