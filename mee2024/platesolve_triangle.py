@@ -416,7 +416,7 @@ def _platesolve_helper(centroids, image_size, options, output_dir=None):
         plt.yticks(fontsize=16)
         plt.title(f"{len(best_non_redundant)} triangles matched\nplatescale={best_result['platescale/arcsec']:.4f} arcsec/pixel\nra={best_result['ra']:.4f}, dec={best_result['dec']:.4f}, roll={best_result['roll']:.4f}", fontsize=16)
         plt.tight_layout()
-        if not output_dir is None:
+        if not output_dir is None and options.get('flag_display2', False):
             plt.savefig(output_dir / 'triangle_matches.png', dpi=600)
         if options['flag_display2']:
             plt.show()

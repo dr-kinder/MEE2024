@@ -639,7 +639,8 @@ def do_stack(files, darkfiles, flatfiles, options):
     
     # rescale stacked to 16 bit integers
     stacked16 = ((stacked-np.min(stacked)) / (np.max(stacked) - np.min(stacked)) * 65535).astype(np.uint16)
-    fits.writeto(output_dir / ('STACKED'+starttime+'.fit'), stacked16)
+    if options.get('save_stacked_fits', True):
+        fits.writeto(output_dir / ('STACKED'+starttime+'.fit'), stacked16)
     if options['float_fits']:
         fits.writeto(output_dir / ('STACKED_FLOAT'+starttime+'.fit'), stacked.astype(np.float32))
     # find centroids on the stacked image
