@@ -530,7 +530,10 @@ def do_stack(files, darkfiles, flatfiles, options):
     logger.info('using darks:'+str(darkfiles))
     logger.info('using flats:'+str(flatfiles))
 
-    
+    seed_frame = int(options.get('seed_frame', 0))
+    if seed_frame:
+        files = list(files[seed_frame:]) + list(files[:seed_frame])
+        logger.info('seed_frame=%d: rotated files list, new reference: %s', seed_frame, files[0])
 
     imgs_0 = open_image(files[0])#do_loop_with_progress_bar([files[0]], open_image, message='Opening files...')
     _, masks_0, masks2_0 = remove_saturated_blob(imgs_0, sat_val=None, radius = options['blob_radius_extra'], radius2 = options['blob_radius_extra']+options['centroid_gap_blob'], blob_saturation=options['blob_saturation_level']/100, perform=options['delete_saturated_blob'])
